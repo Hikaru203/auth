@@ -1,0 +1,24 @@
+# Auth Service — .gitignore
+src/main/resources/keys/
+*.pem
+*.key
+*.log
+logs/
+target/
+*.class
+*.jar
+.env
+.env.*
+application-local.yml
+application-secret.yml
+
+# IDE & OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Frontend
+dashboard-web/node_modules/
+dashboard-web/dist/

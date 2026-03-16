@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auth Service - Admin Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="app">
+      <!-- Sidebar -->
+      <aside class="sidebar">
+        <div class="logo">
+          <span>SecurityHub</span>
+        </div>
+        <ul class="nav-links">
+          <li class="nav-item active" data-view="dashboard">
+             <span class="nav-icon">📊</span> Dashboard
+          </li>
+          <li class="nav-item" data-view="users">
+            <span class="nav-icon">👤</span> Users
+          </li>
+          <li class="nav-item" data-view="roles">
+            <span class="nav-icon">🛡️</span> Roles
+          </li>
+          <li class="nav-item" data-view="api-keys">
+            <span class="nav-icon">🔑</span> API Keys
+          </li>
+          <li class="nav-item" data-view="audit-logs">
+            <span class="nav-icon">📜</span> Audit Logs
+          </li>
+          <li class="nav-item" data-view="tenants">
+            <span class="nav-icon">🏢</span> Tenants
+          </li>
+          <li class="nav-item" data-view="profile">
+            <span class="nav-icon">⚙️</span> Settings
+          </li>
+          <li class="nav-item" id="logoutBtn" style="margin-top: auto; color: var(--danger);">
+            <span class="nav-icon">🚪</span> Logout
+          </li>
+        </ul>
+      </aside>
+
+      <!-- Main Container -->
+      <main class="main-container">
+        <header class="top-nav">
+          <div class="search-bar">
+            <span>🔍</span>
+            <input type="text" placeholder="Search systems..." />
+          </div>
+          <div class="user-profile">
+            <button class="btn" id="globalActionBtn" style="width: auto; padding: 0.5rem 1.5rem;">+ Create</button>
+          </div>
+        </header>
+
+        <section class="content" id="mainViewContainer">
+          <!-- Dynamic Content Loads Here -->
+          <div class="loading-state">
+            <div class="spinner"></div>
+            <p>Initializing portal...</p>
+          </div>
+        </section>
+      </main>
+
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
