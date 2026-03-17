@@ -1,97 +1,147 @@
-# SecurityHub Development & Testing Guide
+# 🧪 SecurityHub Intelligence & Testing Protocols
 
-This guide provides technical blueprints for interacting with the SecurityHub API and verifying system integrity.
+This document serves as the tactical field guide for verifying the SecurityHub mainframe. It contains exhaustive API blueprints, automation scripts, and edge-case verification protocols.
 
 ---
 
-## 🔑 1. Security Initialization (Login)
+## 🛠️ Global Parameters
+- **Base Host**: `http://localhost:8080/api/v1`
+- **Auth Scheme**: JWT Bearer + X-API-Key
 
-**Endpoint:** `POST /api/v1/auth/login`
+---
 
-> [!IMPORTANT]
-> The `totpCode` is mandatory for all accounts. Use `"000000"` if MFA is not yet configured for the identity.
+## 🔑 1. Phase One: Identity Access (Auth)
+
+### Unified Login Protocol
+All identities must provide a `totpCode` (use `"000000"` if MFA is not yet active).
 
 **PowerShell Automation:**
 ```powershell
-$payload = @{
+$credentials = @{
     tenantSlug = "default"
     username = "admin"
     password = "Admin@123"
     totpCode = "000000"
 }
-$response = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/auth/login" -Method Post -Body ($payload | ConvertTo-Json) -ContentType "application/json"
-$token = $response.accessToken
+$authData = Invoke-RestMethod -Uri "$host/auth/login" -Method Post -Body ($credentials | ConvertTo-Json) -ContentType "application/json"
+$access_token = $authData.accessToken
+$refresh_token = $authData.refreshToken
+
+Write-Host "✅ Authentication Secure. Access Token synthesized." -ForegroundColor Green
 ```
+
+### Token Lifecycle Management
+- **Refresh**: Interchange the expired access token with the refresh token.
+- **Logout**: Blacklist the current refresh token from the active session pool.
 
 ---
 
-## 👤 2. Identity Operations
+## 🛡️ 2. Phase Two: Identity Management (Users)
 
-### Update Security Profile
-**Endpoint:** `PUT /api/v1/users/{id}` (Auth Required)
+### Profile Synthesis & Identification
+Retrieve and verify the current identity structure.
 
 ```powershell
-$headers = @{ Authorization = "Bearer $token" }
-$update = @{
-    firstName = "Security"
-    lastName = "Officer"
-    phone = "+1-555-0199"
-}
-Invoke-RestMethod -Uri "http://localhost:8080/api/v1/users/me" -Method Put -Body ($update | ConvertTo-Json) -ContentType "application/json" -Headers $headers
+$headers = @{ Authorization = "Bearer $access_token" }
+Invoke-RestMethod -Uri "$host/users/me" -Method Get -Headers $headers
 ```
 
-### Identity Deactivation (Soft-Delete)
-**Endpoint:** `DELETE /api/v1/users/{id}`
+### Profile Synchronization (Updating)
+Modify non-immutable identity fields (FirstName, LastName, Phone).
 
----
+```powershell
+$profileUpdate = @{ firstName = "Security"; phone = "+1-555-9000" }
+Invoke-RestMethod -Uri "$host/users/me" -Method Put -Body ($profileUpdate | ConvertTo-Json) -ContentType "application/json" -Headers $headers
+```
 
-## 🛡️ 3. Access Control (RBAC)
+### Administrative Listing
+List all identities within the current tenant boundary with pagination support.
 
-### Role Management
-**Endpoint:** `POST /api/v1/users/{id}/roles`
-- Add a new authority link between an identity and a security role.
-
-### Permission Synchronization
-**Endpoint:** `POST /api/v1/roles/{id}/permissions`
-- Update granular permission scopes for a specific role.
-
----
-
-## 📊 4. Surveillance & Auditing
-
-**Endpoint:** `GET /api/v1/audit`
-
-**Advanced Filtering:**
 ```bash
-# Filter by suspicious IP activity
-curl -G http://localhost:8080/api/v1/audit \
-  -H "Authorization: Bearer $token" \
-  -d "ipAddress=192.168.1.1" \
-  -d "action=LOGIN_FAILURE"
+curl -X GET "http://localhost:8080/api/v1/users?page=0&size=20" \
+  -H "Authorization: Bearer $access_token"
 ```
 
 ---
 
-## 🗝️ 5. Programmatic Access (API Keys)
+## 🗝️ 3. Phase Three: Privilege Orchestration (RBAC)
 
-### Key Generation
-**Endpoint:** `POST /api/v1/api-keys`
+### Role Assignment
+Link a security role identity to a user account.
+
+**Endpoint**: `POST /users/{id}/roles`
+- **Payload**: `{ "roleId": "ROLE_ID_HERE" }`
+
+### Permission Logic Verification
+Grant or revoke atomic permissions to/from a role.
+
+**Endpoint**: `POST /roles/{id}/permissions`
+- **Payload**: `{ "permissionId": "PERM_ID_HERE" }`
+
+---
+
+## 📊 4. Phase Four: Surveillance (Audit Logs)
+
+The Audit Engine records every high-value transaction. Use the following filters for deep investigation.
+
+### Investigating Failure Patterns
+Search for blocked login attempts from specific origins.
+
+```bash
+curl -G "http://localhost:8080/api/v1/audit" \
+  -H "Authorization: Bearer $access_token" \
+  -d "action=LOGIN_FAILURE" \
+  -d "statusCode=401"
+```
+
+### Tracing Identity Actions
+Track all modifications performed by a specific username.
+
 ```powershell
-$keyParams = @{ name = "Surveillance-Bot"; expiresInDays = 90 }
-Invoke-RestMethod -Uri "http://localhost:8080/api/v1/api-keys" -Method Post -Body ($keyParams | ConvertTo-Json) -ContentType "application/json" -Headers $headers
+Invoke-RestMethod -Uri "$host/audit?username=admin&size=50" -Method Get -Headers $headers
 ```
 
 ---
 
-## 🛠️ Verification Protocols
+## 🚀 5. Advanced Automation (Stress Testing)
 
-1. **JPA Identity Stability**: Verify that role assignments are persistent across identity reloads (Fixed via stable `equals`/`hashCode`).
-2. **2FA Enforcement**: Attempt login without `totpCode` and verify the system rejects the transaction.
-3. **Notification Integrity**: In the dashboard, trigger an error (e.g., invalid password) and verify the `Security Breach` error card appears instead of a browser alert.
-4. **Tenant Isolation**: Log in with a different `tenantSlug` and ensure data from the `default` tenant remains invisible.
+### Login Rate-Limit Breach Test
+Run this PowerShell loop to verify the **Bucket4j** rate-limiting implementation (expecting 429 status).
+
+```powershell
+foreach ($i in 1..15) {
+    try {
+        Invoke-RestMethod -Uri "$host/auth/login" -Method Post -Body ($credentials | ConvertTo-Json) -ContentType "application/json"
+        Write-Host "Attempt $i: Allowed"
+    } catch {
+        Write-Host "Attempt $i: Blocked ($($_.Exception.Response.StatusCode))" -ForegroundColor Red
+    }
+}
+```
 
 ---
 
-## 🆘 Critical Support
-- **Logs**: Monitor `target/auth-service.log` for real-time security events.
-- **Troubleshooting**: If you encounter a `403 Forbidden`, ensure the identity has the `ADMIN` authority assigned in the dashboard or database.
+## 📦 6. API Key Intelligence (Programmatic Access)
+
+API Keys allow headless systems to interact with the mainframe.
+
+1. **Issue Key**: `POST /api-keys` (Provide `name` and `expiresInDays`).
+2. **Verify Header**: Send `X-API-Key` with the secret received only once during generation.
+3. **Revoke Key**: `POST /api-keys/{id}/revoke` to immediately sever access.
+
+---
+
+## 🔍 Edge-Case Verification Checklist
+
+- [ ] **MFA Bypass Denied**: Attempt login with empty `totpCode` for an MFA-enabled user.
+- [ ] **Tenant Crosstalk**: Verify that `Tenant A` cannot see identities from `Tenant B`.
+- [ ] **Stale Tokens**: Attempt to use an access token after calling `/auth/logout`.
+- [ ] **Permission Escalation**: Verify a `ROLE_USER` cannot access `/api/v1/audit`.
+- [ ] **Database Integrity**: Verify `equals/hashCode` stability by updating a role and checking if the user-to-role relation remains intact.
+
+---
+
+## 🆘 Troubleshooting Intelligence
+- **Connection Refused**: Verify the PostgreSQL service is active and `application.yml` points to the correct port.
+- **Key Rejected**: Ensure the RSA keypair was generated using the provided scripts and resides in the deployment path.
+- **JSON Error**: Ensure your request headers include `Content-Type: application/json`.
