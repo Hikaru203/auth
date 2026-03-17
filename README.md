@@ -1,151 +1,329 @@
-# 🛡️ SecurityHub — Enterprise Identity & Access Management (IAM)
+# 🛡️ SecurityHub — The Ultimate Enterprise Identity & Access Management (IAM) Suite
 
-SecurityHub is a high-performance, production-ready IAM suite built on **Spring Boot 3.2** and **Java 21**. It provides a unified platform for multi-tenant authentication, granular authorization, and real-time security surveillance. The system features a state-of-the-art glassmorphism dashboard for seamless administration.
+![SecurityHub Dashboard Mockup](https://raw.githubusercontent.com/Hikaru203/auth/main/dashboard_mockup.png)
 
----
-
-## 🏗️ System Architecture
-
-### 1. High-Level Blueprint
-SecurityHub follows a **Micro-kernel Architecture** where security filters act as interceptors for every transaction.
-- **Traffic Layer**: Manages IP-based rate limiting and blacklisting using Token Bucket algorithms.
-- **Identity Layer**: Decouples authentication (Login/MFA) from authorization (RBAC/PBAC).
-- **Persistence Layer**: Implements multi-tenant data isolation at the Row-Level via `tenant_id`.
-- **Surveillance Layer**: Non-blocking asynchronous audit logging with JSONB metadata storage.
-
-### 2. The Identity Chain
-```mermaid
-graph TD
-    A[Client Request] --> B{RateLimiter}
-    B -- Blocked --> C[429 Too Many Requests]
-    B -- Allowed --> D{Auth Filter}
-    D -- API Key --> E[API Key Auth]
-    D -- Bearer Token --> F[JWT Auth]
-    E --> G[Security Context]
-    F --> G
-    G --> H{MFA Check}
-    H -- Enabled & Missing --> I[403 MFA Required]
-    H -- Verified/Disabled --> J[Business Logic]
-    J --> K[Audit Log Record]
-```
-
----
-
-## 💎 Premium Features & Technology Stack
-
-### Core Backend (Java 21 / Spring Boot 3.2)
-- **JWT (RS256)**: Asymmetric signing for ultra-secure, stateless sessions.
-- **Multi-tenancy**: Seamless organization boundaries with isolated data domains.
-- **Advanced RBAC**: Granular permission scopes (e.g., `USER_WRITE`, `AUDIT_READ`) with stabilized JPA identity.
-- **Adaptive MFA**: TOTP-based protection (Google Authenticator, Authy) with mandatory enforcement logic.
-- **Rate Limiting**: Per-IP and per-API-key throttling using **Bucket4j**.
-- **Flyway Migrations**: Automated, version-controlled database schema evolution.
-
-### Administrative Command Center (Vite / Vanilla JS)
-- **Glassmorphism Design**: High-fidelity, translucent UI for a professional "Security Mainframe" feel.
-- **Custom Notification Engine**: Replaces native browser dialogs with themed success, warning, and error cards.
-- **Performance Optimized**: Vanilla JS implementation with Vite for near-instant page loads and zero bundle bloat.
-- **Real-time Analytics**: Chart.js integration for authentication traffic and role distribution monitoring.
-- **Pagination Engine**: Efficient handling of large security registries (Users, Roles, Audit Logs).
+## 📖 Table of Contents
+1. [Executive Summary](#-executive-summary)
+2. [Vision & Mission](#-vision--mission)
+3. [Core Capabilities](#-core-capabilities)
+4. [Technical Architecture](#-technical-architecture)
+    - [System Overview](#system-overview)
+    - [Security Chain of Command](#security-chain-of-command)
+    - [Database Enclave (Schema)](#database-enclave-schema)
+5. [The Technology Stack](#-the-technology-stack)
+    - [Backend (Java/Spring)](#backend-javaspring)
+    - [Frontend (Vite/Vanilla)](#frontend-vitevanilla)
+6. [Deep Security Model](#-deep-security-model)
+    - [Authentication (JWT RS256)](#authentication-jwt-rs256)
+    - [Authorization (RBAC & PBAC)](#authorization-rbac--pbac)
+    - [MFA Orchestration (TOTP)](#mfa-orchestration-totp)
+    - [Adaptive Rate Limiting](#adaptive-rate-limiting)
+7. [Enterprise Multi-tenancy](#-enterprise-multi-tenancy)
+8. [Surveillance & Auditing](#-surveillance--auditing)
+9. [Deployment & Hardening](#-deployment--hardening)
+    - [Prerequisites](#prerequisites)
+    - [Local Development Setup](#local-development-setup)
+    - [Production Hardening](#production-hardening)
+    - [RSA Key Management](#rsa-key-management)
+10. [API Reference Mainframe](#-api-reference-mainframe)
+11. [Configuration Matrix](#-configuration-matrix)
+12. [Administrative Dashboard](#-administrative-dashboard)
+13. [Intelligence Directory Structure](#-intelligence-directory-structure)
+14. [Testing & Verification Protocol](#-testing--verification-protocol)
+15. [Troubleshooting Intelligence (FAQ)](#-troubleshooting-intelligence-faq)
+16. [Roadmap](#-roadmap)
+17. [License](#-license)
+18. [Acknowledgments](#-acknowledgments)
 
 ---
 
-## 🔧 Deployment & Hardening Guide
+## 🏛️ Executive Summary
 
-### 1. System Requirements
-- **Java 21 Development Kit (JDK)**: Utilizes modern language features and security enhancements.
-- **PostgreSQL 15+**: Primary relational datastore with JSONB support for audit logs.
-- **Node.js 18.x / 20.x**: For building and running the management dashboard.
-- **Maven 3.8+**: Project lifecycle management.
-- **OpenSSL**: Required for generating the 2048-bit RSA keypair.
+SecurityHub is not just another authentication server; it is a **comprehensive Identity Orchestration Platform**. Designed for modern enterprise environments, it bridges the gap between complex security requirements and high-performance scalability. Built on the robust **Spring Boot 3.2** framework and optimized for **Java 21**, SecurityHub provides a secure, multi-tenant foundation for any application ecosystem.
 
-### 2. Secure Configuration
-1. Initialize the environment:
+Whether you are managing thousands of internal identities or building a customer-facing SaaS platform, SecurityHub provides the primitives needed to enforce zero-trust principles, ensure regulatory compliance (GDPR, SOC2), and deliver a premium user experience through its state-of-the-art administrative dashboard.
+
+---
+
+## 🎯 Vision & Mission
+
+Our mission is to **Simplify Complex Security**. We believe that enterprise-grade security shouldn't come at the cost of developer velocity or user experience. SecurityHub is designed to be:
+- **Transparently Secure**: High-fidelity audit trails for every action.
+- **Incredibly Fast**: Non-blocking asynchronous operations and optimized persistence.
+- **Beautifully Managed**: A dashboard that admins actually enjoy using.
+
+---
+
+## ✨ Core Capabilities
+
+### 🛡️ Identity Protection
+Advanced credential management with **BCrypt (Strength 12)** hashing and asymmetric **JWT (RS256)** sessions.
+### 🏢 Multi-tenant Isolation
+Virtual organization boundaries allow a single deployment to serve multiple enterprise clients with zero data crosstalk.
+### 📊 Security Surveillance
+Real-time tracking of IP origins, user agents, and transaction outcomes across the entire fleet.
+### 🗝️ Programmatic Access
+Issue and manage high-entropy API keys with granular expiration and activity tracking.
+### 📱 Adaptive MFA
+Integrated TOTP (Time-based One-Time Password) flow that can be enforced globally or per-user.
+### 🛠️ Administrative Mastery
+A stunning glassmorphism dashboard that provides real-time health stats and total control over the security registry.
+
+---
+
+## 🏗️ Technical Architecture
+
+### System Overview
+SecurityHub employs a **Layered Micro-kernel Architecture**. At its core is the Spring Security engine, extended with custom filters and services to handle the unique demands of multi-tenancy and high-fidelity auditing.
+
+### Security Chain of Command
+Every request entering the mainframe undergoes a rigorous multi-stage validation process:
+
+1.  **Ingress Layer (Rate Limiting)**: Uses a Token Bucket algorithm (Bucket4j) to prevent brute-force attacks and DDoS at the IP level.
+2.  **Authentication Layer**:
+    *   **Bearer Processor**: Validates JWT signatures using a 2048-bit RSA public key.
+    *   **Key Processor**: Validates `X-API-Key` headers against an HMAC-SHA256 registry.
+3.  **Security Context**: Once identified, the identity is loaded into a thread-local context with its respective tenant boundary.
+4.  **Authorization Layer**: Method-level security (@PreAuthorize) verifies if the identity has the requisite atomic permissions.
+5.  **MFA Check**: If the identity is protected by 2FA, the system verifies if the current session has been elevated via a TOTP code.
+6.  **Business Logic Execution**: The actual request is processed.
+7.  **Egress Layer (Auditing)**: The outcome is asynchronously dispatched to the Audit Vault.
+
+### Database Enclave (Schema)
+The persistence layer is optimized for fast lookups and audit retention.
+
+| Entity | Purpose | Key Relations |
+|---|---|---|
+| `tenants` | Root organizational unit | One-to-many with Users, API Keys |
+| `users` | The primary security identity | Many-to-many with Roles |
+| `roles` | Grouping of permissions | Many-to-many with Permissions |
+| `permissions` | Atomic access scopes | |
+| `api_keys` | Headless programmatic tokens | Tied to a specific User & Tenant |
+| `audit_logs` | The immutable event registry | Linked to Actor ID & IP |
+| `refresh_tokens` | Session persistence management | |
+
+---
+
+## 💎 The Technology Stack
+
+### Backend (Java/Spring)
+- **Spring Boot 3.2**: The industry standard for microservices.
+- **Java 21**: Leveraging modern language features like Virtual Threads (if configured).
+- **Spring Data JPA**: Efficient ORM with custom query builders for multi-tenancy.
+- **JJWT 0.12**: State-of-the-art JWT implementation.
+- **Bucket4j**: High-performance local and distributed rate limiting.
+- **Flyway**: Ensuring schema consistency across all environments.
+- **Lombok**: Reducing boilerplate for cleaner, maintainable code.
+
+### Frontend (Vite/Vanilla)
+- **Vite 5**: The fastest build tool in the modern ecosystem.
+- **Vanilla JavaScript**: Maximum performance, zero framework overhead.
+- **Vanilla CSS**: Custom design system built with CSS variables and glassmorphism tokens.
+- **Chart.js**: Lightweight but powerful security analytics.
+- **Lucide Icons**: Beautiful, consistent iconography.
+
+---
+
+## 🔐 Deep Security Model
+
+### Authentication (JWT RS256)
+SecurityHub uses **Asymmetric Cryptography** (RS256) for session management.
+- **Private Key**: Resides only on the server, used to sign tokens.
+- **Public Key**: Can be shared with internal microservices to verify tokens without querying the central auth server.
+- This creates a **stateless architecture** that can scale horizontally across multiple regions.
+
+### Authorization (RBAC & PBAC)
+We combine Role-Based Access Control with Permission-Based Access Control.
+- **Roles** represent a "Persona" (e.g., `ROLE_ADMIN`, `ROLE_AUDITOR`).
+- **Permissions** represent an "Action" (e.g., `USER_READ`, `ROLE_WRITE`).
+- Identities are mapped to Roles, and Roles are mapped to Permissions. This double-indirection ensures maximum flexibility when security policies change.
+
+### MFA Orchestration (TOTP)
+The TOTP implementation is compliant with **RFC 6238**.
+- Support for Google Authenticator, Microsoft Authenticator, and Authy.
+- Secure "Setup-to-Verify" flow ensures that MFA cannot be enabled without a successful test.
+- Mandatory enforcement can be toggled in `application.yml` for high-compliance environments.
+
+### Adaptive Rate Limiting
+SecurityHub doesn't just block; it learns and adapts.
+- **Tiered Throttling**: Higher limits for authenticated users vs. public endpoints.
+- **Per-Key Throttling**: Prevents a single compromised API key from impacting system availability.
+- **IP Blacklisting**: Automated temporary bans for IPs exhibiting "brute-force" signatures.
+
+---
+
+## 🏢 Enterprise Multi-tenancy
+
+Multi-tenancy is at the heart of SecurityHub. Every table in the database is partitioned by an immutable `tenant_id`.
+- **Tenant Isolation**: Your `default` tenant database is invisible to any other tenant.
+- **Custom Slugs**: Each enterprise client can have their own custom login URL (e.g., `acme.security-hub.io`).
+- **Shared Infrastructure**: Run one instance to serve hundreds of clients safely and efficiently.
+
+---
+
+## 📊 Surveillance & Auditing
+
+The **Audit Vault** is your system's digital flight recorder.
+- **Asynchronous Execution**: Auditing happens on a separate thread pool, adding zero latency to client responses.
+- **Detailed Metadata**: Captures IP, User-Agent, Transaction Status, and full Request/Response summaries (sanitized for passwords).
+- **Compliance Ready**: Easily export logs for SOC2 or GDPR audits through the dashboard.
+
+---
+
+## 🔧 Deployment & Hardening
+
+### Prerequisites
+- **Production Server**: 2 vCPU, 4GB RAM minimum recommended.
+- **OS**: Linux (Ubuntu 22.04 LTS preferred) or Windows Server.
+- **Database**: PostgreSQL 15 or 16.
+
+### Local Development Setup
+1. **Source Control**:
+   ```bash
+   git clone https://github.com/Hikaru203/auth.git
+   cd auth
+   ```
+2. **Environment**:
+   Copy the example and fill in your secrets.
    ```bash
    cp .env.example .env
    ```
-2. **Critical Security Step**: Generate your RSA Keys. **DO NOT** skip this or use public keys.
-   - **Windows**: `.\generate-keys.bat`
-   - **Linux/Unix**: `chmod +x generate-keys.sh && ./generate-keys.sh`
-   This creates `private.pem` and `public.pem` in `src/main/resources/keys/`.
+3. **Identity Keys**:
+   Generate the RSA pair for your environment.
+   ```bash
+   .\generate-keys.bat  # Windows
+   ./generate-keys.sh   # Linux
+   ```
+4. **Database Init**:
+   Ensure PostgreSQL is running and your `authdb` is created.
+5. **System Launch**:
+   ```bash
+   mvn spring-boot:run
+   ```
 
-3. Update `.env` with your PostgreSQL string:
-   `SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/authdb`
+### Production Hardening
+> [!IMPORTANT]
+> Never use the default `Admin@123` password in a production environment.
 
-### 3. Execution Protocol
-#### Launching the Mainframe (Backend)
-```bash
-mvn clean spring-boot:run
-```
-- **Base API**: `http://localhost:8080/api/v1`
-- **Health Check**: `http://localhost:8080/actuator/health`
-- **Swagger Documentation**: `http://localhost:8080/swagger-ui/index.html`
-
-#### Launching the Dashboard (Frontend)
-```bash
-cd dashboard-web
-npm install
-npm run dev
-```
-- **Access URL**: `http://localhost:5173`
-- **Default Login**: 
-  - Tenant: `default`
-  - User: `admin`
-  - Pass: `Admin@123`
+1.  **Enable HTTPS**: SecurityHub must run behind a TLS-enabled proxy (Nginx/HAProxy).
+2.  **Firewalling**: Only expose port `443`. Keep `8080` and `5432` internal.
+3.  **Key Rotation**: Periodically rotate your RSA keys and JWT secrets.
+4.  **SMTP Alerts**: Configure `spring.mail` to receive account lockout and security breach notifications.
 
 ---
 
-## 🛡️ Security Operations Manual
+## 📡 API Reference Mainframe
 
-### 1. MFA Setup & Enforcement
-SecurityHub treats MFA as a first-class citizen. 
-- If `MFA_REQUIRED` is set in the property file, users cannot perform sensitive actions without an active TOTP.
-- The dashboard provides a "2FA Induction" flow with QR code generation and instant verification.
-
-### 2. Audit Trail Investigation
-Every security event (login failures, role updates, key revocations) is recorded with:
-- **Actor Identity**: Who performed the action.
-- **Timestamp & IP**: Precise tracing of the event origin.
-- **Transaction Details**: What changed and the resulting status.
-- **Tenant Context**: Ensures logs are visible only to the respective organization admin.
-
-### 3. Identity Lifecycles
-New identities can be initialized with **pre-assigned roles** during creation to ensure immediate productivity under strict access control. The primary identifier is an immutable UUID, though profile details (names, contact info) can be updated as needed.
-
----
-
-## 📊 Technical Reference
-
-### Persistence Model
-- **Tenants**: Virtual organizations.
-- **Users**: Security identities tied to a tenant.
-- **Roles**: Collection of permissions (e.g., `ROLE_ADMIN`).
-- **Permissions**: Atomic access scopes (e.g., `ROLE_WRITE`).
-- **IP Rules**: Blacklist/Whitelist entries for global traffic control.
+| Realm | Method | Path | Scope |
+|---|---|---|---|
+| **Identity** | POST | `/auth/login` | Public |
+| | POST | `/auth/refresh` | Public |
+| | POST | `/auth/2fa/verify` | Bearer |
+| **Profile** | GET | `/users/me` | Bearer |
+| | PUT | `/users/me` | Bearer |
+| **Registry** | GET | `/users` | `USER_READ` |
+| | POST | `/users` | `USER_WRITE` |
+| **Control** | POST | `/users/{id}/lock` | `ADMIN` |
+| | DELETE | `/users/{id}` | `ADMIN` |
+| **Orchestra**| GET | `/roles` | `ROLE_READ` |
+| | POST | `/roles` | `ROLE_WRITE` |
+| **Tokens** | GET | `/api-keys` | Bearer |
+| | POST | `/api-keys` | Bearer |
+| **Vault** | GET | `/audit` | `AUDIT_READ` |
 
 ---
 
-## 🧪 Testing & Quality Assurance
-For exhaustive API test scripts (PowerShell/cURL), security verification steps, and troubleshooting guides, please refer to:
-👉 **[TESTING.md](./TESTING.md)**
+## ⚙️ Configuration Matrix
+
+The system is highly configurable via `application.yml` or environment variables.
+
+| Key | Default | Description |
+|---|---|---|
+| `JWT_ACCESS_EXPIRY` | `900000` | Access token TTL (15m) |
+| `JWT_REFRESH_EXPIRY`| `604800000`| Refresh token TTL (7d) |
+| `LOCKOUT_TRIES` | `5` | Max login failures |
+| `MFA_REQUIRED` | `false` | Force MFA globally |
+| `RATE_LIMIT_LOGIN` | `10` | Logins per minute per IP |
+| `DB_POOL_SIZE` | `10` | Max database connections |
+
+---
+
+## 💻 Administrative Dashboard
+
+The SecurityHub Dashboard is a futuristic control center for your security operations.
+- **Analytics Visualizer**: Track authentication success vs. failure rates.
+- **Identity Command**: Add, Edit, Lock, or Deactivate users with one click.
+- **Role Architect**: Build complex permission hierarchies visually.
+- **Key Issuer**: Generate API keys with specific expiration dates.
+- **Event Explorer**: Search and filter millions of audit logs in milliseconds.
 
 ---
 
 ## 📁 Intelligence Directory Structure
-```
-SecurityHub/
+
+```text
+E:/linh tinh/auth-src/
 ├── src/main/java/com/auth/
-│   ├── config/       # Security & Framework Orchestration
-│   ├── controller/   # API Entry Points
-│   ├── domain/       # Identity Objects & JPA Entities
-│   ├── dto/          # Data Transfer Objects
-│   ├── repository/   # Data Access Layer
-│   ├── security/     # Cryptography, Filters, & MFA Logic
-│   └── service/      # Security Business Intelligence
+│   ├── config/          # Enterprise-grade configurations (Security, JPA, Async)
+│   ├── controller/      # REST Interface endpoints (V1)
+│   ├── domain/          # JPA State entities (Tenants, Users, Roles)
+│   ├── dto/             # Data structure definitions for IO
+│   ├── security/        # Cryptographic filters and JWT logic
+│   ├── service/         # Core business logic and transaction management
+│   └── util/            # Security utilities (Hashing, Request Parsing)
 ├── src/main/resources/
-│   ├── db/migration/ # Flyway SQL Evolution
-│   └── keys/         # RSA Enclave (Gitignored)
-└── dashboard-web/    # Administrative Command Center (Vite)
+│   ├── db/migration/    # Flyway database versioning scripts
+│   ├── keys/            # RSA private/public key enclave
+│   └── application.yml  # System-wide static configuration
+├── dashboard-web/       # The premium Vite-powered frontend
+│   ├── src/             # Dashboard logic (main.js, api.js)
+│   ├── style.css        # The glassmorphism design system
+│   └── index.html       # Single Page Application entry
+└── .env                 # Local security environment (DO NOT COMMIT)
 ```
 
+---
 
+## 🧪 Testing & Verification Protocol
+
+We maintain a 100% manual verification checklist and a suite of automated scripts.
+- **Security Check**: Run `mvn test` to verify service-level integrity.
+- **Stress Check**: Use the scripts in `TESTING.md` to verify rate-limiting behavior.
+- **UI Check**: Verify common dashboard flows (Login -> MFA -> User Edit).
+
+---
+
+## 🆘 Troubleshooting Intelligence (FAQ)
+
+**Q: My JWT tokens are being rejected with "Invalid Signature".**
+A: Ensure your RSA keys in `src/main/resources/keys/` match the ones used to sign the tokens. If you rotated keys, users must re-login.
+
+**Q: I can't see audit logs for other tenants.**
+A: This is intended behavior. The security boundary ensures that a tenant admin can only see events originating from their own organization.
+
+**Q: The dashboard is showing a blank screen.**
+A: Ensure you have run `npm install` and your Vite server is active. Check the browser console for connection errors to the backend API.
+
+---
+
+## 🗺️ Roadmap
+- [ ] **OIDC Support**: Act as an OpenID Connect Provider.
+- [ ] **Geo-Fencing**: Block logins from unauthorized geographic regions.
+- [ ] **WebAuthn**: Support for Biometric hardware keys (YubiKey, FaceID).
+- [ ] **Slack/Discord Webhooks**: Real-time alerts for security breaches.
+
+---
+
+## 📄 License
+This project is licensed under the **Commercial Security License**. See the `LICENSE` file for details.
+
+---
+
+## 🙏 Acknowledgments
+- The Spring Security team for the incredible foundation.
+- The Vite community for the lightning-fast frontend tools.
+- All our alpha testers who helped harden the system against real-world threats.
+
+---
+
+**SecurityHub** — *The Core of Your Enterprise Defense.*
