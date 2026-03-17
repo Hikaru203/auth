@@ -76,6 +76,22 @@ A stunning glassmorphism dashboard that provides real-time health stats and tota
 ### System Overview
 SecurityHub employs a **Layered Micro-kernel Architecture**. At its core is the Spring Security engine, extended with custom filters and services to handle the unique demands of multi-tenancy and high-fidelity auditing.
 
+#### The Identity Chain (Request Lifecycle)
+```mermaid
+graph TD
+    A[Client Request] --> B{RateLimiter}
+    B -- Blocked --> C[429 Too Many Requests]
+    B -- Allowed --> D{Auth Filter}
+    D -- API Key --> E[API Key Auth]
+    D -- Bearer Token --> F[JWT Auth]
+    E --> G[Security Context]
+    F --> G
+    G --> H{MFA Check}
+    H -- Enabled & Missing --> I[403 MFA Required]
+    H -- Verified/Disabled --> J[Business Logic]
+    J --> K[Audit Log Record]
+```
+
 ### Security Chain of Command
 Every request entering the mainframe undergoes a rigorous multi-stage validation process:
 
@@ -91,6 +107,53 @@ Every request entering the mainframe undergoes a rigorous multi-stage validation
 
 ### Database Enclave (Schema)
 The persistence layer is optimized for fast lookups and audit retention.
+
+```mermaid
+classDiagram
+    Tenant "1" --* "*" User : manages
+    Tenant "1" --* "*" ApiKey : issues
+    User "1" --* "*" RefreshToken : owns
+    User "*" --* "*" Role : assigned
+    Role "*" --* "*" Permission : internal_scopes
+    Tenant "1" --* "*" AuditLog : records
+
+    class Tenant {
+        +UUID id
+        +String name
+        +String slug
+        +Status status
+    }
+    class User {
+        +UUID id
+        +String username
+        +String email
+        +String passwordHash
+        +Boolean is2faEnabled
+        +String secret2fa
+    }
+    class Role {
+        +UUID id
+        +String name
+        +String description
+    }
+    class Permission {
+        +UUID id
+        +String name
+    }
+    class ApiKey {
+        +UUID id
+        +String keyPrefix
+        +String hashedKey
+        +Instant expiresAt
+    }
+    class AuditLog {
+        +UUID id
+        +String action
+        +String ipAddress
+        +Integer statusCode
+        +JSONB metadata
+    }
+```
 
 | Entity | Purpose | Key Relations |
 |---|---|---|
@@ -131,6 +194,36 @@ SecurityHub uses **Asymmetric Cryptography** (RS256) for session management.
 - **Private Key**: Resides only on the server, used to sign tokens.
 - **Public Key**: Can be shared with internal microservices to verify tokens without querying the central auth server.
 - This creates a **stateless architecture** that can scale horizontally across multiple regions.
+
+#### Authentication Logic Flow
+```mermaid
+sequenceDiagram
+    participant U as User/Client
+    participant A as AuthService
+    participant S as SecurityFilter
+    participant D as Database
+
+    U->>A: POST /auth/login (Credentials + TOTP)
+    A->>D: Find User by Username
+    D-->>A: User Entity (Hashed Pass + MFA Secret)
+    A->>A: Verify BCrypt Password
+    alt Password Invalid
+        A-->>U: 401 Unauthorized (Audit Logged)
+    else Password Valid
+        alt MFA Enabled for User
+            A->>A: Verify TOTP Code
+            alt TOTP Invalid
+                A-->>U: 401 Invalid 2FA Code
+            else TOTP Valid
+                A->>A: Generate JWT (RS256)
+                A-->>U: 200 OK (Tokens)
+            end
+        else MFA Disabled
+            A->>A: Generate JWT (RS256)
+            A-->>U: 200 OK (Tokens)
+        end
+    end
+```
 
 ### Authorization (RBAC & PBAC)
 We combine Role-Based Access Control with Permission-Based Access Control.
