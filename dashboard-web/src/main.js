@@ -24,6 +24,10 @@ const LoginTemplate = () => `
           <label class="label">Tenant Slug</label>
           <input type="text" id="loginTenant" class="input" placeholder="default" value="default" />
         </div>
+        <div class="form-group">
+          <label class="label">2FA Code (Optional)</label>
+          <input type="text" id="loginTotp" class="input" placeholder="000000" maxlength="6" />
+        </div>
         <button type="submit" class="btn" style="width: 100%; margin-top: 1rem;">Authenticate Identity</button>
       </form>
     </div>
@@ -53,6 +57,11 @@ const DashboardTemplate = () => `
       <div id="statTenants" class="stat-value">...</div>
       <div class="stat-change up">Operational</div>
     </div>
+    <div class="stat-card animate-in" style="animation-delay: 0.25s">
+      <div class="stat-header"><span class="stat-label">2FA Adoption</span><span>🛡️</span></div>
+      <div id="stat2fa" class="stat-value">...</div>
+      <div class="stat-change" id="stat2faMsg">Security Health</div>
+    </div>
   </div>
   <div class="charts-grid">
     <div class="chart-card animate-in" style="animation-delay: 0.3s">
@@ -66,46 +75,97 @@ const DashboardTemplate = () => `
   </div>
 `;
 
+const PaginationTemplate = (pageData, viewName) => `
+  <div class="pagination animate-in" style="display: flex; gap: 1rem; align-items: center; justify-content: flex-end; margin-top: 1.5rem;">
+    <span class="text-muted" style="font-size: 0.85rem;">Page ${pageData.page + 1} of ${pageData.totalPages} (${pageData.totalElements} total items)</span>
+    <div style="display: flex; gap: 0.5rem;">
+      <button class="btn" style="padding: 0.25rem 0.75rem; background: var(--glass-bg); border: 1px solid var(--glass-border);" 
+        ${pageData.page === 0 ? 'disabled' : ''} 
+        onclick="document.dispatchEvent(new CustomEvent('action:page-change', {detail: {view: '${viewName}', page: ${pageData.page - 1}}}))">
+        Previous
+      </button>
+      <button class="btn" style="padding: 0.25rem 0.75rem; background: var(--glass-bg); border: 1px solid var(--glass-border);" 
+        ${pageData.last ? 'disabled' : ''} 
+        onclick="document.dispatchEvent(new CustomEvent('action:page-change', {detail: {view: '${viewName}', page: ${pageData.page + 1}}}))">
+        Next
+      </button>
+    </div>
+  </div>
+`;
+
 const UsersTemplate = (usersPage) => `
   <div class="header-row animate-in">
-    <div class="welcome-msg"><h1>User Management</h1><p>${usersPage.totalElements} security identities found.</p></div>
-    <button class="btn" onclick="document.dispatchEvent(new CustomEvent('action:create-user'))">+ New Identity</button>
+    <div class="welcome-msg"><h1>Security Identities</h1><p>${usersPage.totalElements} records managed.</p></div>
+    <button class="btn" onclick="document.dispatchEvent(new CustomEvent('action:create-user'))"><span style="margin-right: 4px;">+</span> New Identity</button>
   </div>
   <div class="table-container animate-in">
     <table>
-      <thead><tr><th>Username</th><th>Email</th><th>Status</th><th>Roles</th><th>Action</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Identity</th>
+          <th>Contact</th>
+          <th>MFA Status</th>
+          <th>Account Status</th>
+          <th>Security Roles</th>
+          <th>Operations</th>
+        </tr>
+      </thead>
       <tbody>
         ${usersPage.content.map(u => `
           <tr>
-            <td><b>${u.username}</b></td>
-            <td>${u.email}</td>
-            <td><span class="badge ${u.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}">${u.status}</span></td>
-            <td>${u.roles?.map(r => `<span class="badge badge-info" style="margin-right: 4px;">${r}</span>`).join('') || 'USER'}</td>
             <td>
-              <div style="display: flex; gap: 4px;">
-                <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8rem;" onclick="document.dispatchEvent(new CustomEvent('action:lock-user', {detail: '${u.id}'}))">Lock</button>
-                <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.8rem; background: var(--danger);" onclick="document.dispatchEvent(new CustomEvent('action:delete-user', {detail: '${u.id}'}))">Kill</button>
+              <div style="font-weight: 600; color: var(--text-primary);">${u.username}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">${u.id.substring(0,8)}...</div>
+            </td>
+            <td>
+              <div>${u.email}</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">${u.phone || 'No phone'}</div>
+            </td>
+            <td><span class="badge ${u.totpEnabled ? 'badge-success' : 'badge-danger'}">${u.totpEnabled ? 'PROTECTED' : 'VULNERABLE'}</span></td>
+            <td><span class="badge ${u.status === 'ACTIVE' ? 'badge-success' : 'badge-danger'}">${u.status}</span></td>
+            <td>
+              <div style="display: flex; flex-wrap: wrap; gap: 4px; max-width: 200px;">
+                ${u.roles?.map(r => `<span class="badge badge-info" style="font-size: 0.7rem;">${r}</span>`).join('') || '<span class="text-muted">No Roles</span>'}
+              </div>
+            </td>
+            <td>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: var(--primary);" 
+                  onclick="document.dispatchEvent(new CustomEvent('action:manage-user-roles', {detail: '${u.id}'}))">Roles</button>
+                <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: var(--glass-bg); border: 1px solid var(--glass-border);" 
+                  onclick="document.dispatchEvent(new CustomEvent('action:edit-user', {detail: '${u.id}'}))">Edit</button>
+                <button class="btn" style="padding: 0.3rem 0.6rem; font-size: 0.75rem; background: var(--danger);" 
+                   onclick="document.dispatchEvent(new CustomEvent('action:delete-user', {detail: '${u.id}'}))">Kill</button>
               </div>
             </td>
           </tr>`).join('')}
       </tbody>
     </table>
   </div>
+  ${PaginationTemplate(usersPage, 'users')}
 `;
 
-const RolesTemplate = (roles) => `
+const RolesTemplate = (rolesPage) => `
   <div class="header-row animate-in">
-    <div class="welcome-msg"><h1>Role Definitions</h1><p>${roles.length} permission sets discovered.</p></div>
+    <div class="welcome-msg"><h1>Role Definitions</h1><p>${rolesPage.totalElements} permission sets discovered.</p></div>
     <button class="btn" onclick="document.dispatchEvent(new CustomEvent('action:create-role'))">+ Define Role</button>
   </div>
-  <div class="dashboard-grid animate-in">
-    ${roles.map(r => `
+  <div class="dashboard-grid animate-in" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));">
+    ${rolesPage.content.map(r => `
       <div class="stat-card">
         <div class="stat-header"><b>${r.name}</b><span>🛡️</span></div>
-        <p style="color: var(--text-muted); font-size: 0.85rem;">Permissions: ${r.permissions?.length || 0}</p>
-        <div class="stat-change up" style="margin-top: 1rem;">Active Scope</div>
+        <p style="color: var(--text-muted); font-size: 0.85rem; min-height: 2rem;">${r.description || 'No description provided.'}</p>
+        <p style="color: var(--text-muted); font-size: 0.75rem;">Permissions: ${r.permissions?.length || 0}</p>
+        <div style="display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1rem;">
+          <div class="stat-change up" style="margin-right: auto;">${r.systemRole ? '🛡️ System Scope' : 'Active Scope'}</div>
+          <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: var(--glass-bg); border: 1px solid var(--glass-border);" 
+            onclick="document.dispatchEvent(new CustomEvent('action:edit-role', {detail: '${r.id}'}))">Edit</button>
+          <button class="btn" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" 
+            onclick="document.dispatchEvent(new CustomEvent('action:manage-role-permissions', {detail: '${r.id}'}))">Permissions</button>
+        </div>
       </div>`).join('')}
   </div>
+  ${PaginationTemplate(rolesPage, 'roles')}
 `;
 
 const ProfileTemplate = (user) => `
@@ -161,11 +221,46 @@ const ApiKeysTemplate = (keysPage) => `
       </tbody>
     </table>
   </div>
+  ${PaginationTemplate(keysPage, 'api-keys')}
+`;
+
+const PermissionsTemplate = (permissions) => `
+  <div class="header-row animate-in">
+    <div class="welcome-msg"><h1>Permission Scopes</h1><p>${permissions.length} granular access tokens.</p></div>
+  </div>
+  <div class="dashboard-grid animate-in">
+    ${permissions.map(p => `
+      <div class="stat-card">
+        <div class="stat-header"><b>${p.name}</b><span>🔑</span></div>
+        <p style="color: var(--text-muted); font-size: 0.85rem;">${p.description || 'No description'}</p>
+        <div class="stat-change up" style="margin-top: 1rem;">System Scope</div>
+      </div>`).join('')}
+  </div>
 `;
 
 const LogsTemplate = (logsPage) => `
   <div class="header-row animate-in">
     <div class="welcome-msg"><h1>Audit Logs</h1><p>${logsPage.totalElements} security events recorded.</p></div>
+  </div>
+  <div class="dashboard-grid animate-in" style="grid-template-columns: 1fr; margin-bottom: 1rem;">
+    <div class="stat-card" style="padding: 1rem;">
+      <form id="auditFilterForm" style="display: flex; gap: 1rem; align-items: flex-end;">
+        <div class="form-group" style="margin: 0; flex: 1;">
+          <label class="label">Username</label>
+          <input type="text" id="filterUser" class="input" placeholder="Search user..." />
+        </div>
+        <div class="form-group" style="margin: 0; flex: 1;">
+          <label class="label">Action</label>
+          <input type="text" id="filterAction" class="input" placeholder="e.g. LOGIN_SUCCESS" />
+        </div>
+        <div class="form-group" style="margin: 0; width: 120px;">
+          <label class="label">Status</label>
+          <input type="number" id="filterStatus" class="input" placeholder="200" />
+        </div>
+        <button type="submit" class="btn">Filter</button>
+        <button type="button" class="btn" style="background: transparent; border: 1px solid var(--glass-border);" onclick="document.dispatchEvent(new CustomEvent('action:clear-audit-filters'))">Clear</button>
+      </form>
+    </div>
   </div>
   <div class="table-container animate-in">
     <table>
@@ -173,15 +268,16 @@ const LogsTemplate = (logsPage) => `
       <tbody>
         ${logsPage.content.map(l => `
           <tr>
-            <td style="font-size: 0.8rem; color: var(--text-muted);">${new Date(l.timestamp).toLocaleString()}</td>
+            <td style="font-size: 0.8rem; color: var(--text-muted);">${new Date(l.createdAt).toLocaleString()}</td>
             <td><b>${l.username || 'system'}</b></td>
             <td style="color: var(--primary); font-weight: 500;">${l.action}</td>
-            <td><code>${l.ipAddress}</code></td>
-            <td><span class="badge ${l.status < 400 ? 'badge-success' : 'badge-danger'}">${l.status}</span></td>
+            <td><code>${l.ipAddress || '0.0.0.0'}</code></td>
+            <td><span class="badge ${l.statusCode < 400 ? 'badge-success' : 'badge-danger'}">${l.statusCode || 'N/A'}</span></td>
           </tr>`).join('')}
       </tbody>
     </table>
   </div>
+  ${PaginationTemplate(logsPage, 'audit-logs')}
 `;
 
 const TenantsTemplate = (tenants) => `
@@ -253,11 +349,78 @@ const app = document.getElementById('app');
 const mainContainer = document.getElementById('mainViewContainer');
 
 let currentView = 'dashboard';
+let currentCache = { users: [], roles: [], permissions: [] };
 
 const showLoading = () => {
   if (mainContainer) {
     mainContainer.innerHTML = `<div class="loading-state animate-in"><div class="spinner"></div><p>Syncing with security mainframe...</p></div>`;
   }
+};
+
+const notify = (message, type = 'success') => {
+  let overlay = document.querySelector('.notify-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'notify-overlay';
+    document.body.appendChild(overlay);
+  }
+
+  const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️';
+  const title = type === 'success' ? 'Operational Success' : type === 'error' ? 'Security Breach' : 'System Alert';
+  
+  const card = document.createElement('div');
+  card.className = `notify-card ${type}`;
+  card.innerHTML = `
+    <div class="notify-icon">${icon}</div>
+    <div class="notify-content">
+      <div class="notify-title">${title}</div>
+      <div class="notify-msg">${message}</div>
+    </div>
+    <button class="notify-close">✕</button>
+  `;
+
+  overlay.appendChild(card);
+
+  const close = () => {
+    card.classList.add('notify-out');
+    setTimeout(() => card.remove(), 400);
+  };
+
+  card.querySelector('.notify-close').onclick = close;
+
+  if (type === 'success') {
+    setTimeout(close, 4000);
+  }
+};
+
+const askConfirm = (title, message) => {
+  return new Promise((resolve) => {
+    const modalDiv = document.createElement('div');
+    modalDiv.className = 'modal-overlay';
+    modalDiv.innerHTML = `
+      <div class="modal-content animate-in" style="max-width: 400px; text-align: center; border-top: 4px solid var(--danger);">
+        <div style="padding: 2rem;">
+          <div style="font-size: 2.5rem; margin-bottom: 1rem;">⚠️</div>
+          <h3 style="margin-bottom: 0.5rem;">${title}</h3>
+          <p class="text-muted" style="font-size: 0.9rem; margin-bottom: 2rem;">${message}</p>
+          <div style="display: flex; gap: 1rem;">
+            <button class="btn" style="flex: 1; background: var(--glass-bg); border: 1px solid var(--glass-border);" id="confirmCancel">Cancel</button>
+            <button class="btn" style="flex: 1; background: var(--danger);" id="confirmProceed">Proceed</button>
+          </div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+
+    modalDiv.querySelector('#confirmCancel').onclick = () => {
+      modalDiv.remove();
+      resolve(false);
+    };
+    modalDiv.querySelector('#confirmProceed').onclick = () => {
+      modalDiv.remove();
+      resolve(true);
+    };
+  });
 };
 
 const renderCharts = (trafficData = [], roleData = []) => {
@@ -329,12 +492,15 @@ const switchView = async (view) => {
   navItems.forEach(item => item.classList.toggle('active', item.dataset.view === view));
 
   try {
+    const page = window.pagingState[view] || 0;
+    const size = 20;
+
     switch (view) {
-      case 'dashboard':
+      case 'dashboard': {
         mainContainer.innerHTML = DashboardTemplate();
         // Concurrently fetch counts and chart data
         const [usersPage, tenants, traffic, roles] = await Promise.all([
-            api.getUsers(), 
+            api.getUsers(0, 50), 
             api.getTenants(),
             api.getTrafficStats(7),
             api.getRoleDistribution()
@@ -343,20 +509,49 @@ const switchView = async (view) => {
         document.getElementById('statUsers').innerText = usersPage.totalElements || usersPage.length;
         document.getElementById('statTenants').innerText = tenants.length;
         
+        // Calculate 2FA Adoption
+        const totpEnabledCount = (usersPage.content || []).filter(u => u.totpEnabled).length;
+        const totalUsers = (usersPage.content || []).length;
+        const adoptionRate = totalUsers > 0 ? Math.round((totpEnabledCount / totalUsers) * 100) : 0;
+        const stat2fa = document.getElementById('stat2fa');
+        if (stat2fa) {
+            stat2fa.innerText = `${adoptionRate}%`;
+            const msg = document.getElementById('stat2faMsg');
+            msg.className = `stat-change ${adoptionRate > 50 ? 'up' : 'down'}`;
+            msg.innerText = adoptionRate > 50 ? '🛡️ Strong' : '⚠️ Critical';
+        }
+        
         renderCharts(traffic.points, roles.distribution);
         break;
-      case 'users':
-        mainContainer.innerHTML = UsersTemplate(await api.getUsers());
+      }
+      case 'users': {
+        const usersPage = await api.getUsers(page, size);
+        currentCache.users = usersPage.content;
+        mainContainer.innerHTML = UsersTemplate(usersPage);
         break;
-      case 'roles':
-        mainContainer.innerHTML = RolesTemplate(await api.getRoles());
+      }
+      case 'roles': {
+        const rolesPage = await api.getRoles(page, size);
+        currentCache.roles = rolesPage.content;
+        mainContainer.innerHTML = RolesTemplate(rolesPage);
         break;
+      }
       case 'api-keys':
-        mainContainer.innerHTML = ApiKeysTemplate(await api.getApiKeys());
+        mainContainer.innerHTML = ApiKeysTemplate(await api.getApiKeys(page, size));
         break;
-      case 'audit-logs':
-        mainContainer.innerHTML = LogsTemplate(await api.getAuditLogs());
+      case 'audit-logs': {
+        const filters = { ...(window.auditFilters || {}), page, size };
+        const logsPage = await api.getAuditLogs(filters);
+        mainContainer.innerHTML = LogsTemplate(logsPage);
+        handleAuditFilterEvents();
         break;
+      }
+      case 'permissions': {
+        const perms = await api.getPermissions();
+        currentCache.permissions = perms;
+        mainContainer.innerHTML = PermissionsTemplate(perms);
+        break;
+      }
       case 'tenants':
         mainContainer.innerHTML = TenantsTemplate(await api.getTenants());
         break;
@@ -370,6 +565,40 @@ const switchView = async (view) => {
   }
 };
 
+window.pagingState = {};
+
+document.addEventListener('action:page-change', (e) => {
+    window.pagingState[e.detail.view] = e.detail.page;
+    switchView(e.detail.view);
+});
+
+const handleAuditFilterEvents = () => {
+    const form = document.getElementById('auditFilterForm');
+    if (!form) return;
+
+    // Prefill filters
+    if (window.auditFilters) {
+        if (window.auditFilters.username) document.getElementById('filterUser').value = window.auditFilters.username;
+        if (window.auditFilters.action) document.getElementById('filterAction').value = window.auditFilters.action;
+        if (window.auditFilters.statusCode) document.getElementById('filterStatus').value = window.auditFilters.statusCode;
+    }
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        window.auditFilters = {
+            username: document.getElementById('filterUser').value,
+            action: document.getElementById('filterAction').value,
+            statusCode: document.getElementById('filterStatus').value
+        };
+        switchView('audit-logs');
+    });
+};
+
+document.addEventListener('action:clear-audit-filters', () => {
+    window.auditFilters = {};
+    switchView('audit-logs');
+});
+
 const handleLoginEvents = () => {
   const form = document.getElementById('loginForm');
   form?.addEventListener('submit', async (e) => {
@@ -378,14 +607,14 @@ const handleLoginEvents = () => {
       username: document.getElementById('loginUser').value,
       password: document.getElementById('loginPass').value,
       tenantSlug: document.getElementById('loginTenant').value,
-      totpCode: "000000"
+      totpCode: document.getElementById('loginTotp').value || "000000"
     };
     try {
       const res = await api.login(credentials);
-      api.setToken(res.accessToken);
+      api.setToken(res.accessToken, credentials.tenantSlug);
       window.location.reload();
     } catch (err) {
-      alert(`Authentication Error: ${err.message}`);
+      notify(`Authentication Error: ${err.message}`, 'error');
     }
   });
 };
@@ -405,79 +634,193 @@ document.addEventListener('action:setup-2fa', async () => {
       const code = modal.querySelector('#totpVerifyCode').value;
       try {
         await api.verify2fa({ secret: res.secret, code });
-        alert('2FA Enabled Successfully!');
+        notify('2FA Enabled Successfully!');
         modal.remove();
-      } catch (err) { alert(err.message); }
+      } catch (err) { notify(err.message, 'error'); }
     };
-  } catch (err) { alert(err.message); }
+  } catch (err) { notify(err.message, 'error'); }
 });
 
-document.addEventListener('action:create-user', () => {
-  const fields = [
-    { id: 'uUser', label: 'Username', required: true },
-    { id: 'uEmail', label: 'Email', type: 'email', required: true },
-    { id: 'uPass', label: 'Password', type: 'password', required: true },
-    { id: 'uFirst', label: 'First Name' },
-    { id: 'uLast', label: 'Last Name' }
-  ];
-  const modalDiv = document.createElement('div');
-  modalDiv.innerHTML = FormModalTemplate('Create Security Identity', fields, 'createUser');
-  document.body.appendChild(modalDiv.firstElementChild);
+document.addEventListener('action:create-user', async () => {
+  try {
+    const rolesPage = await api.getRoles(0, 100);
+    const allRoles = rolesPage.content;
 
-  document.getElementById('createUserForm').onsubmit = async (e) => {
-    e.preventDefault();
-    const data = {
-      username: document.getElementById('uUser').value,
-      email: document.getElementById('uEmail').value,
-      password: document.getElementById('uPass').value,
-      firstName: document.getElementById('uFirst').value,
-      lastName: document.getElementById('uLast').value
+    const modalDiv = document.createElement('div');
+    modalDiv.className = 'modal-overlay';
+    modalDiv.onclick = () => modalDiv.remove();
+    modalDiv.innerHTML = `
+      <div class="modal-content animate-in" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-title">Initialize New Identity</h3>
+          <button class="btn" style="padding: 0.2rem 0.5rem;" onclick="this.closest('.modal-overlay').remove()">✕</button>
+        </div>
+        <form id="createUserForm" style="padding: 1.5rem;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group"><label class="label">Username</label><input type="text" id="uUser" class="input" required /></div>
+            <div class="form-group"><label class="label">Email</label><input type="email" id="uEmail" class="input" required /></div>
+            <div class="form-group"><label class="label">Password</label><input type="password" id="uPass" class="input" required /></div>
+            <div class="form-group"><label class="label">Phone</label><input type="text" id="uPhone" class="input" /></div>
+            <div class="form-group"><label class="label">First Name</label><input type="text" id="uFirst" class="input" /></div>
+            <div class="form-group"><label class="label">Last Name</label><input type="text" id="uLast" class="input" /></div>
+          </div>
+          <div class="form-group" style="margin-top: 1rem;">
+            <label class="label">Primary Security Roles</label>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; background: var(--glass-bg); padding: 1rem; border-radius: 8px;">
+              ${allRoles.map(r => `
+                <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; cursor: pointer;">
+                  <input type="checkbox" data-role-id="${r.id}" name="roleCheck" />
+                  <span>${r.name}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+          <button type="submit" class="btn" id="submitUserBtn" style="width: 100%; margin-top: 1.5rem;">Create Identity</button>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+
+    document.getElementById('createUserForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submitUserBtn');
+      const originalText = btn.innerText;
+      
+      const roleIds = Array.from(document.querySelectorAll('input[name="roleCheck"]:checked')).map(i => i.dataset.roleId);
+      const data = {
+        tenantSlug: localStorage.getItem('tenant_slug') || 'default',
+        username: document.getElementById('uUser').value,
+        email: document.getElementById('uEmail').value,
+        password: document.getElementById('uPass').value,
+        firstName: document.getElementById('uFirst').value,
+        lastName: document.getElementById('uLast').value,
+        phone: document.getElementById('uPhone').value
+      };
+
+      try {
+        btn.disabled = true;
+        btn.innerText = 'Initializing...';
+        const user = await api.createUser(data);
+        
+        // Assign roles
+        if (roleIds.length > 0) {
+          for (const rid of roleIds) {
+            await api.assignUserRole(user.id, rid);
+          }
+        }
+
+        notify('Success: Identity created and roles assigned.');
+        modalDiv.remove();
+        switchView('users');
+      } catch (err) { 
+        notify('Operation Failed: ' + err.message);
+        btn.disabled = false;
+        btn.innerText = originalText;
+      }
     };
+  } catch (err) { notify(err.message, 'error'); }
+});
+
+document.addEventListener('action:edit-user', async (e) => {
+  const userId = e.detail;
+  const user = currentCache.users.find(u => u.id === userId);
+  if (!user) return;
+
+  const modalDiv = document.createElement('div');
+  modalDiv.className = 'modal-overlay';
+  modalDiv.onclick = () => modalDiv.remove();
+  modalDiv.innerHTML = `
+    <div class="modal-content animate-in" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Identity Profile</h3>
+        <button class="btn" style="padding: 0.2rem 0.5rem;" onclick="this.closest('.modal-overlay').remove()">✕</button>
+      </div>
+      <form id="editUserForm" style="padding: 1.5rem;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <div class="form-group"><label class="label">First Name</label><input type="text" id="eFirst" class="input" value="${user.firstName || ''}" /></div>
+          <div class="form-group"><label class="label">Last Name</label><input type="text" id="eLast" class="input" value="${user.lastName || ''}" /></div>
+          <div class="form-group" style="grid-column: span 2;"><label class="label">Phone</label><input type="text" id="ePhone" class="input" value="${user.phone || ''}" /></div>
+        </div>
+        <p class="text-muted" style="font-size: 0.75rem; margin-top: 1rem;">Note: Username and Email remain immutable for security audit trails.</p>
+        <button type="submit" class="btn" id="updateUserBtn" style="width: 100%; margin-top: 1.5rem;">Update Profile</button>
+      </form>
+    </div>
+  `;
+  document.body.appendChild(modalDiv);
+
+  document.getElementById('editUserForm').onsubmit = async (evt) => {
+    evt.preventDefault();
+    const btn = document.getElementById('updateUserBtn');
+    const originalText = btn.innerText;
+
+    const data = {
+      firstName: document.getElementById('eFirst').value,
+      lastName: document.getElementById('eLast').value,
+      phone: document.getElementById('ePhone').value
+    };
+
     try {
-      await api.createUser(data);
-      alert('User created!');
+      btn.disabled = true;
+      btn.innerText = 'Updating Security Record...';
+      await api.updateUser(userId, data);
+      notify('Success: Profile updated.');
+      modalDiv.remove();
       switchView('users');
-      document.querySelector('.modal-overlay').remove();
-    } catch (err) { alert(err.message); }
+    } catch (err) {
+      notify('Update Failed: ' + err.message);
+      btn.disabled = false;
+      btn.innerText = originalText;
+    }
   };
 });
 
 document.addEventListener('action:lock-user', async (e) => {
-  if (confirm('Toggle account lock?')) {
+  const proceed = await askConfirm('Security Isolation', 'Toggle security isolation (Lock/Unlock) for this identity?');
+  if (proceed) {
     try {
       await api.lockUser(e.detail);
+      notify('Security status synchronized.');
       switchView('users');
     } catch (err) { 
-      try { await api.unlockUser(e.detail); switchView('users'); } catch (e2) { alert(err.message); }
+      try { 
+        await api.unlockUser(e.detail); 
+        notify('User identity restored.');
+        switchView('users'); 
+      } catch (e2) { notify(err.message, 'error'); }
     }
   }
 });
 
 document.addEventListener('action:delete-user', async (e) => {
-  if (confirm('DEACTIVATE THIS IDENTITY? This is a soft-delete.')) {
+  const proceed = await askConfirm('Identity Deactivation', 'Permanently DEACTIVATE this identity? This will revoke all active sessions.');
+  if (proceed) {
     try {
       await api.deleteUser(e.detail);
+      notify('Identity deactivated.');
       switchView('users');
-    } catch (err) { alert(err.message); }
+    } catch (err) { notify(err.message, 'error'); }
   }
 });
 
 document.addEventListener('action:refresh-key', async (e) => {
-  if (confirm('Refresh this key? The current one will be REVOKED and a new one generated.')) {
+  const proceed = await askConfirm('Key Regeneration', 'Are you sure? The previous API key will be immediately REVOKED and a new one generated.');
+  if (proceed) {
     try {
       const res = await api.refreshApiKey(e.detail);
-      alert(`KEY REFRESHED!\nNew Prefix: ${res.keyPrefix}\n\nSAVE THIS NEW KEY:\n${res.secretKey}`);
+      notify(`KEY REFRESHED!\nPrefix: ${res.keyPrefix}\n\nNEW SECRET:\n${res.secretKey}`, 'success');
       switchView('api-keys');
-    } catch (err) { alert(err.message); }
+    } catch (err) { notify(err.message, 'error'); }
   }
 });
 
 document.addEventListener('action:revoke-key', async (e) => {
-  if (confirm('Revoke this API token permanently?')) {
+  const proceed = await askConfirm('Token Revocation', 'Revoke this API token permanently? All systems using this key will be disconnected.');
+  if (proceed) {
     try {
       await api.revokeApiKey(e.detail);
+      notify('API Key revoked.');
       switchView('api-keys');
-    } catch (err) { alert(err.message); }
+    } catch (err) { notify(err.message, 'error'); }
   }
 });
 
@@ -498,10 +841,10 @@ document.addEventListener('action:create-key', () => {
     };
     try {
       const res = await api.generateApiKey(data);
-      alert(`KEY ISSUED!\nPrefix: ${res.keyPrefix}\n\nSAVE THIS KEY NOW:\n${res.secretKey}\n\nIt will never be shown again.`);
+      notify(`KEY ISSUED!\nPrefix: ${res.keyPrefix}\n\nSAVE THIS KEY NOW:\n${res.secretKey}\n\nIt will never be shown again.`);
       switchView('api-keys');
       document.querySelector('.modal-overlay').remove();
-    } catch (err) { alert(err.message); }
+    } catch (err) { notify(err.message, 'error'); }
   };
 });
 
@@ -522,10 +865,10 @@ document.addEventListener('action:create-role', () => {
     };
     try {
       await api.createRole(data);
-      alert('Role defined!');
+      notify('Role defined!');
       switchView('roles');
       document.querySelector('.modal-overlay').remove();
-    } catch (err) { alert(err.message); }
+    } catch (err) { notify(err.message, 'error'); }
   };
 });
 
@@ -548,11 +891,199 @@ document.addEventListener('action:create-tenant', () => {
     };
     try {
       await api.createTenant(data);
-      alert('Tenant onboarded!');
+      notify('Tenant onboarded!');
       switchView('tenants');
       document.querySelector('.modal-overlay').remove();
-    } catch (err) { alert(err.message); }
+    } catch (err) { notify(err.message, 'error'); }
   };
+});
+
+document.addEventListener('action:manage-user-roles', async (e) => {
+  const id = e.detail;
+  const user = currentCache.users.find(u => u.id === id);
+  if (!user) return;
+  const userRoles = user.roles || [];
+
+  try {
+    if (!currentCache.roles.length) {
+      const allRolesPage = await api.getRoles(0, 100);
+      currentCache.roles = allRolesPage.content;
+    }
+    const allRoles = currentCache.roles;
+    
+    const modalDiv = document.createElement('div');
+    modalDiv.className = 'modal-overlay';
+    modalDiv.onclick = () => modalDiv.remove();
+    modalDiv.innerHTML = `
+      <div class="modal-content animate-in" onclick="event.stopPropagation()">
+        <div class="modal-header">
+          <h3 class="modal-title">Manage Roles: ${user.username}</h3>
+          <button class="btn" style="padding: 0.2rem 0.5rem;" onclick="this.closest('.modal-overlay').remove()">✕</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <p class="text-muted" style="margin-bottom: 1rem;">Toggle roles for this security identity.</p>
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            ${allRoles.map(r => `
+              <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                <input type="checkbox" data-role-id="${r.id}" ${userRoles.includes(r.name) ? 'checked' : ''} />
+                <span>${r.name}</span>
+              </label>
+            `).join('')}
+          </div>
+          <button class="btn" id="saveUserRolesBtn" style="width: 100%; margin-top: 1.5rem;">Save Changes</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+
+    modalDiv.querySelector('#saveUserRolesBtn').onclick = async (evt) => {
+      const btn = evt.target;
+      const originalText = btn.innerText;
+      const selectedIds = Array.from(modalDiv.querySelectorAll('input:checked')).map(i => i.dataset.roleId);
+      const originalRoleIds = allRoles.filter(r => userRoles.includes(r.name)).map(r => r.id);
+      
+      try {
+        btn.disabled = true;
+        btn.innerText = 'Saving Changes...';
+        
+        const toAdd = selectedIds.filter(rid => !originalRoleIds.includes(rid));
+        const toRemove = originalRoleIds.filter(rid => !selectedIds.includes(rid));
+
+        for (const rid of toAdd) await api.assignUserRole(id, rid);
+        for (const rid of toRemove) await api.removeUserRole(id, rid);
+
+        notify('Success: Roles updated for ' + user.username);
+        modalDiv.remove();
+        switchView('users');
+      } catch (err) { 
+        notify('Update Failed: ' + err.message); 
+        btn.disabled = false;
+        btn.innerText = originalText;
+      }
+    };
+  } catch (err) { notify(err.message, 'error'); }
+});
+
+document.addEventListener('action:manage-role-permissions', async (e) => {
+  const id = e.detail;
+  const role = currentCache.roles.find(r => r.id === id);
+  if (!role) return;
+  const rolePerms = (role.permissions || []).map(p => p.name);
+
+  try {
+    if (!currentCache.permissions.length) {
+      currentCache.permissions = await api.getPermissions();
+    }
+    const allPerms = currentCache.permissions;
+
+    const modalDiv = document.createElement('div');
+    modalDiv.className = 'modal-overlay';
+    modalDiv.onclick = () => modalDiv.remove();
+    modalDiv.innerHTML = `
+      <div class="modal-content animate-in" onclick="event.stopPropagation()" style="max-width: 600px;">
+        <div class="modal-header">
+          <h3 class="modal-title">Permissions: ${role.name}</h3>
+          <button class="btn" style="padding: 0.2rem 0.5rem;" onclick="this.closest('.modal-overlay').remove()">✕</button>
+        </div>
+        <div style="padding: 1.5rem;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; max-height: 400px; overflow-y: auto;">
+            ${allPerms.map(p => `
+              <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer;">
+                <input type="checkbox" data-perm-id="${p.id}" ${rolePerms.includes(p.name) ? 'checked' : ''} />
+                <span style="font-size: 0.9rem;">${p.name}</span>
+              </label>
+            `).join('')}
+          </div>
+          <button class="btn" id="saveRolePermsBtn" style="width: 100%; margin-top: 1.5rem;">Update Permissions</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+
+    modalDiv.querySelector('#saveRolePermsBtn').onclick = async (evt) => {
+      const btn = evt.target;
+      const originalText = btn.innerText;
+      const selectedIds = Array.from(modalDiv.querySelectorAll('input:checked')).map(i => i.dataset.permId);
+      const originalPermIds = allPerms.filter(p => rolePerms.includes(p.name)).map(p => p.id);
+      
+      try {
+        btn.disabled = true;
+        btn.innerText = 'Updating Permissions...';
+
+        const toAdd = selectedIds.filter(pid => !originalPermIds.includes(pid));
+        const toRemove = originalPermIds.filter(pid => !selectedIds.includes(pid));
+
+        for (const pid of toAdd) await api.addRolePermission(id, { permissionId: pid });
+        for (const pid of toRemove) await api.removeRolePermission(id, pid);
+
+        notify('Success: Permissions updated for ' + role.name);
+        modalDiv.remove();
+        switchView('roles');
+      } catch (err) { 
+        notify('Update Failed: ' + err.message); 
+        btn.disabled = false;
+        btn.innerText = originalText;
+      }
+    };
+  } catch (err) { notify(err.message, 'error'); }
+});
+
+document.addEventListener('action:edit-user', async (e) => {
+    const id = e.detail;
+    const user = currentCache.users.find(u => u.id === id);
+    if (!user) return;
+
+    const fields = [
+        { id: 'eFirst', label: 'First Name', value: user.firstName || '' },
+        { id: 'eLast', label: 'Last Name', value: user.lastName || '' },
+        { id: 'ePhone', label: 'Phone', value: user.phone || '' }
+    ];
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = FormModalTemplate(`Edit Identity: ${user.username}`, fields, 'updateUser');
+    document.body.appendChild(modalDiv.firstElementChild);
+
+    document.getElementById('updateUserForm').onsubmit = async (evt) => {
+        evt.preventDefault();
+        const data = {
+            firstName: document.getElementById('eFirst').value,
+            lastName: document.getElementById('eLast').value,
+            phone: document.getElementById('ePhone').value
+        };
+        try {
+            await api.updateUser(id, data);
+            notify('User updated!');
+            switchView('users');
+            document.querySelector('.modal-overlay').remove();
+        } catch (err) { notify(err.message, 'error'); }
+    };
+});
+
+document.addEventListener('action:edit-role', async (e) => {
+    const id = e.detail;
+    const role = currentCache.roles.find(r => r.id === id);
+    if (!role) return;
+
+    const fields = [
+        { id: 'erName', label: 'Role Name', value: role.name, required: true },
+        { id: 'erDesc', label: 'Description', value: role.description || '' }
+    ];
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = FormModalTemplate(`Edit Role: ${role.name}`, fields, 'updateRole');
+    document.body.appendChild(modalDiv.firstElementChild);
+
+    document.getElementById('updateRoleForm').onsubmit = async (evt) => {
+        evt.preventDefault();
+        const data = {
+            name: document.getElementById('erName').value,
+            description: document.getElementById('erDesc').value
+        };
+        try {
+            await api.updateRole(id, data);
+            notify('Role updated!');
+            switchView('roles');
+            document.querySelector('.modal-overlay').remove();
+        } catch (err) { notify(err.message, 'error'); }
+    };
 });
 
 const initMenu = () => {

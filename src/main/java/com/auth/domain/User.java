@@ -97,6 +97,11 @@ public class User extends BaseEntity {
         this.lockedUntil = null;
     }
 
+    public boolean isAdmin() {
+        return roles.stream().anyMatch(r -> 
+            r.getName().equals("ADMIN") || r.getName().equals("SUPER_ADMIN"));
+    }
+
     public String getFullName() {
         if (firstName == null && lastName == null) return username;
         return ((firstName != null ? firstName : "") + " " + (lastName != null ? lastName : "")).trim();

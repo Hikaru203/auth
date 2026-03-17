@@ -30,12 +30,31 @@ public class RoleController {
 
     private final RoleService roleService;
 
-    @GetMapping
-    @Operation(summary = "List all roles in tenant")
+    @GetMapping("/permissions")
+    @Operation(summary = "List all system permissions")
     @PreAuthorize("hasAuthority('ROLE_READ')")
-    public ResponseEntity<List<RoleResponse>> listRoles(@AuthenticationPrincipal CustomUserDetails user) {
-        return ResponseEntity.ok(roleService.listRoles(user.getTenantId()).stream()
-                .map(this::toResponse).toList());
+    public ResponseEntity<List<PermissionResponse>> listPermissions() {
+        return ResponseEntity.ok(roleService.listAllPermissions().stream()
+                .map(p -> PermissionResponse.builder()
+                        .id(p.getId())
+                        .name(p.getName())
+                        .module(p.getModule())
+                        .action(p.getAction())
+                        .description(p.getDescription())
+                        .build()
+                ).toList());
+    }
+
+    @GetMapping
+    @Operation(summary = "List all roles in tenant (paginated)")
+    @PreAuthorize("hasAuthority('ROLE_READ')")
+    public ResponseEntity<com.auth.dto.response.PageResponse<RoleResponse>> listRoles(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @AuthenticationPrincipal CustomUserDetails user) {
+        org.springframework.data.domain.Page<Role> roles = roleService.listRoles(user.getTenantId(), 
+                org.springframework.data.domain.PageRequest.of(page, size));
+        return ResponseEntity.ok(com.auth.dto.response.PageResponse.from(roles.map(this::toResponse)));
     }
 
     @PostMapping

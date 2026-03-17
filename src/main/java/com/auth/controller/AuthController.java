@@ -131,7 +131,7 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "Invalid TOTP code"));
         }
         // Enable 2FA on the user
-        userService.getUser(currentUser.getId(), currentUser.getTenantId()); // validate access
+        userService.enable2fa(currentUser.getId(), secret);
         return ResponseEntity.ok(Map.of("message", "2FA enabled successfully"));
     }
 

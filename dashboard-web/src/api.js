@@ -5,12 +5,14 @@ class ApiService {
         this.token = localStorage.getItem('auth_token');
     }
 
-    setToken(token) {
+    setToken(token, tenantSlug) {
         this.token = token;
         if (token) {
             localStorage.setItem('auth_token', token);
+            if (tenantSlug) localStorage.setItem('tenant_slug', tenantSlug);
         } else {
             localStorage.removeItem('auth_token');
+            localStorage.removeItem('tenant_slug');
         }
     }
 
@@ -27,7 +29,9 @@ class ApiService {
         }
 
         try {
+            console.log(`[API CALL] ${options.method || 'GET'} ${url}`, options.body ? JSON.parse(options.body) : '');
             const response = await fetch(url, { ...options, headers });
+            console.log(`[API RSP] ${response.status} ${cleanEndpoint}`);
             
             if (response.status === 401) {
                 this.setToken(null);
@@ -58,7 +62,7 @@ class ApiService {
     disable2fa() { return this.request('/auth/2fa/disable', { method: 'DELETE' }); }
 
     // USERS
-    getUsers(page = 0, size = 10) { return this.request(`/users?page=${page}&size=${size}`); }
+    getUsers(page = 0, size = 20) { return this.request(`/users?page=${page}&size=${size}`); }
     getUser(id) { return this.request(`/users/${id}`); }
     createUser(data) { return this.request('/users', { method: 'POST', body: JSON.stringify(data) }); }
     updateUser(id, data) { return this.request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
@@ -70,7 +74,7 @@ class ApiService {
     removeUserRole(userId, roleId) { return this.request(`/users/${userId}/roles/${roleId}`, { method: 'DELETE' }); }
 
     // ROLES
-    getRoles() { return this.request('/roles'); }
+    getRoles(page = 0, size = 20) { return this.request(`/roles?page=${page}&size=${size}`); }
     getRole(id) { return this.request(`/roles/${id}`); }
     createRole(data) { return this.request('/roles', { method: 'POST', body: JSON.stringify(data) }); }
     updateRole(id, data) { return this.request(`/roles/${id}`, { method: 'PUT', body: JSON.stringify(data) }); }
@@ -79,14 +83,27 @@ class ApiService {
     removeRolePermission(roleId, permissionId) { return this.request(`/roles/${roleId}/permissions/${permissionId}`, { method: 'DELETE' }); }
 
     // API KEYS
-    getApiKeys() { return this.request('/api-keys'); }
+    getApiKeys(page = 0, size = 20) { return this.request(`/api-keys?page=${page}&size=${size}`); }
     generateApiKey(data) { return this.request('/api-keys', { method: 'POST', body: JSON.stringify(data) }); }
     refreshApiKey(id) { return this.request(`/api-keys/${id}/refresh`, { method: 'POST' }); }
     revokeApiKey(id) { return this.request(`/api-keys/${id}/revoke`, { method: 'POST' }); }
 
     // AUDIT & TENANTS
-    getAuditLogs(page = 0, size = 10) { return this.request(`/audit?page=${page}&size=${size}`); }
-    getMyAuditLogs(page = 0, size = 10) { return this.request(`/audit/me?page=${page}&size=${size}`); }
+    async getAuditLogs(filters = {}) {
+        const query = new URLSearchParams();
+        const page = filters.page !== undefined ? filters.page : 0;
+        const size = filters.size !== undefined ? filters.size : 20;
+        
+        query.append('page', page);
+        query.append('size', size);
+        if (filters.username) query.append('username', filters.username);
+        if (filters.action) query.append('action', filters.action);
+        if (filters.statusCode) query.append('statusCode', filters.statusCode);
+        
+        const path = `/audit${query.toString() ? '?' + query.toString() : ''}`;
+        return this.request(path);
+    }
+    getMyAuditLogs(page = 0, size = 20) { return this.request(`/audit/me?page=${page}&size=${size}`); }
     
     getTenants() { return this.request('/tenants'); }
     getTenant(id) { return this.request(`/tenants/${id}`); }
@@ -97,6 +114,7 @@ class ApiService {
     // STATISTICS
     getTrafficStats(days = 7) { return this.request(`/stats/traffic?days=${days}`); }
     getRoleDistribution() { return this.request('/stats/roles'); }
+    getPermissions() { return this.request('/roles/permissions'); }
 }
 
 export const api = new ApiService();

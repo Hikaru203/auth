@@ -369,6 +369,57 @@ tr:hover td { background: rgba(255, 255, 255, 0.02); }
 .fade-out { animation: fadeOut 0.4s ease forwards; }
 @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
 
-/* Sidebar Toggle for Login */
-body.auth-mode .sidebar, body.auth-mode .top-nav { display: none !important; }
-body.auth-mode .main-container { width: 100%; background: transparent; }
+/* Notification System */
+.notify-overlay {
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  pointer-events: none;
+}
+
+.notify-card {
+  min-width: 320px;
+  max-width: 450px;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  pointer-events: auto;
+  animation: notifyIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.3s ease;
+}
+
+.notify-card.error { border-left: 4px solid var(--danger); }
+.notify-card.success { border-left: 4px solid var(--accent); }
+.notify-card.warning { border-left: 4px solid #f59e0b; }
+
+.notify-icon { font-size: 1.25rem; }
+.notify-content { flex: 1; }
+.notify-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 0.1rem; }
+.notify-msg { font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; }
+.notify-close { 
+  background: transparent; border: none; color: var(--text-muted); 
+  cursor: pointer; padding: 0.25rem; font-size: 1rem;
+  transition: color 0.2s;
+}
+.notify-close:hover { color: white; }
+
+@keyframes notifyIn {
+  from { opacity: 0; transform: translateX(30px) scale(0.95); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.notify-out {
+  opacity: 0;
+  transform: translateX(30px) scale(0.95);
+}
+

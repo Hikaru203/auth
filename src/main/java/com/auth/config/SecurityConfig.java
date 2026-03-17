@@ -32,6 +32,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
+    private final com.auth.security.AuditLoggingFilter auditLoggingFilter;
     private final SecurityProperties securityProperties;
 
     private static final String[] PUBLIC_PATHS = {
@@ -60,6 +61,7 @@ public class SecurityConfig {
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(apiKeyAuthenticationFilter, JwtAuthenticationFilter.class)
+            .addFilterAfter(auditLoggingFilter, UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(401);

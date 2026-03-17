@@ -20,8 +20,8 @@ public class RoleService {
     private final TenantRepository tenantRepository;
 
     @Transactional(readOnly = true)
-    public List<Role> listRoles(UUID tenantId) {
-        return roleRepository.findAllByTenantIdWithPermissions(tenantId);
+    public org.springframework.data.domain.Page<Role> listRoles(UUID tenantId, org.springframework.data.domain.Pageable pageable) {
+        return roleRepository.findAllByTenantId(tenantId, pageable);
     }
 
     @Transactional(readOnly = true)
@@ -88,5 +88,10 @@ public class RoleService {
         if (!role.getTenant().getId().equals(tenantId)) throw ApiException.forbidden("Access denied");
         role.getPermissions().removeIf(p -> p.getId().equals(permissionId));
         return roleRepository.save(role);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Permission> listAllPermissions() {
+        return permissionRepository.findAll();
     }
 }

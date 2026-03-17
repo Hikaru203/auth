@@ -38,4 +38,16 @@ public class Role extends BaseEntity {
     )
     @Builder.Default
     private Set<Permission> permissions = new HashSet<>();
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Role role)) return false;
+        return getId() != null && getId().equals(role.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 }

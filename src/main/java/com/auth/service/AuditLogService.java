@@ -95,6 +95,34 @@ public class AuditLogService {
         return TrafficStatsResponse.builder().points(points).build();
     }
     @Transactional(readOnly = true)
+    public Page<AuditLog> searchLogs(UUID tenantId, String username, String action,
+                                     Integer statusCode, Instant startDate, Instant endDate,
+                                     Pageable pageable) {
+        return auditLogRepository.findAll((root, query, cb) -> {
+            var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
+            predicates.add(cb.equal(root.get("tenantId"), tenantId));
+
+            if (username != null && !username.isBlank()) {
+                predicates.add(cb.like(cb.lower(root.get("username")), "%" + username.toLowerCase() + "%"));
+            }
+            if (action != null && !action.isBlank()) {
+                predicates.add(cb.equal(root.get("action"), action));
+            }
+            if (statusCode != null) {
+                predicates.add(cb.equal(root.get("statusCode"), statusCode));
+            }
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate));
+            }
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate));
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        }, pageable);
+    }
+
+    @Transactional(readOnly = true)
     public Page<AuditLog> getMyLogs(UUID userId, Pageable pageable) {
         return auditLogRepository.findAllByUserId(userId, pageable);
     }

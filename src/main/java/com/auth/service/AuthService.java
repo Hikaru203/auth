@@ -71,15 +71,21 @@ public class AuthService {
             throw ApiException.unauthorized("Invalid credentials");
         }
 
-        // Validate 2FA if enabled
+        // Validate 2FA if enabled or required
+        boolean is2faRequired = securityProperties.getTwoFactor().isForceAll() ||
+                (securityProperties.getTwoFactor().isForceAdmins() && user.isAdmin());
+
         if (user.isTotpEnabled()) {
-            if (totpCode == null || totpCode.isBlank()) {
+            if (totpCode == null || totpCode.isBlank() || totpCode.equals("000000")) {
                 throw ApiException.badRequest("2FA code required");
             }
             if (!twoFactorService.verifyCode(user.getTotpSecret(), totpCode)) {
                 auditLogService.logFailedLogin(user.getId(), username, tenantSlug, ip, userAgent, "INVALID_2FA");
                 throw ApiException.unauthorized("Invalid 2FA code");
             }
+        } else if (is2faRequired) {
+            log.warn("Login blocked: 2FA required for user {}", username);
+            throw ApiException.forbidden("Two-Factor Authentication is required for your account. Please contact your administrator or set it up via profile.");
         }
 
         // Success — reset failed attempts

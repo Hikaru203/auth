@@ -17,6 +17,9 @@ public interface RoleRepository extends JpaRepository<Role, UUID> {
 
     Optional<Role> findByNameAndTenantId(String name, UUID tenantId);
 
+    @Query("SELECT r FROM Role r WHERE r.tenant.id = :tenantId")
+    org.springframework.data.domain.Page<Role> findAllByTenantId(@Param("tenantId") UUID tenantId, org.springframework.data.domain.Pageable pageable);
+
     @Query("SELECT r FROM Role r JOIN FETCH r.permissions WHERE r.tenant.id = :tenantId")
     List<Role> findAllByTenantIdWithPermissions(@Param("tenantId") UUID tenantId);
 

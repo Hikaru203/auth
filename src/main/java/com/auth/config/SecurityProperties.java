@@ -15,7 +15,14 @@ public class SecurityProperties {
     private PasswordPolicy passwordPolicy = new PasswordPolicy();
     private RateLimit rateLimit = new RateLimit();
     private ApiKeySettings apiKey = new ApiKeySettings();
+    private TwoFactor twoFactor = new TwoFactor();
     private Cors cors = new Cors();
+
+    @Data
+    public static class TwoFactor {
+        private boolean forceAdmins = false;
+        private boolean forceAll = false;
+    }
 
     @Data
     public static class AccountLockout {

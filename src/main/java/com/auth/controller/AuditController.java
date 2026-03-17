@@ -26,14 +26,20 @@ public class AuditController {
     private final AuditLogService auditLogService;
 
     @GetMapping
-    @Operation(summary = "Query all audit logs for tenant (admin only)")
+    @Operation(summary = "Query audit logs for tenant with filtering (admin only)")
     @PreAuthorize("hasAuthority('AUDIT_READ')")
     public ResponseEntity<PageResponse<AuditLog>> getLogs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String action,
+            @RequestParam(required = false) Integer statusCode,
+            @RequestParam(required = false) java.time.Instant startDate,
+            @RequestParam(required = false) java.time.Instant endDate,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
 
-        Page<AuditLog> logs = auditLogService.getLogs(currentUser.getTenantId(),
+        Page<AuditLog> logs = auditLogService.searchLogs(
+                currentUser.getTenantId(), username, action, statusCode, startDate, endDate,
                 PageRequest.of(page, size, Sort.by("createdAt").descending()));
         return ResponseEntity.ok(PageResponse.from(logs));
     }

@@ -7,6 +7,7 @@ import com.auth.domain.UserStatus;
 import com.auth.dto.response.RoleDistributionResponse;
 import com.auth.exception.ApiException;
 import com.auth.repository.RoleRepository;
+import com.auth.repository.TenantRepository;
 import com.auth.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -26,6 +27,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final TenantRepository tenantRepository;
     private final PasswordEncoder passwordEncoder;
     private final SecurityProperties securityProperties;
 
@@ -43,7 +45,11 @@ public class UserService {
             throw ApiException.badRequest("Email already exists in this tenant");
         }
 
+        com.auth.domain.Tenant tenant = tenantRepository.findById(tenantId)
+                .orElseThrow(() -> ApiException.notFound("Tenant not found"));
+
         User user = User.builder()
+                .tenant(tenant)
                 .username(username)
                 .email(email)
                 .passwordHash(passwordEncoder.encode(password))
@@ -55,7 +61,7 @@ public class UserService {
                 .emailVerified(false)
                 .totpEnabled(false)
                 .build();
-        // Set tenant manually or via a helper
+        
         return userRepository.save(user);
     }
 
@@ -113,6 +119,15 @@ public class UserService {
                 .map(r -> new RoleDistributionResponse.RoleCount((String) r[0], (Long) r[1]))
                 .collect(Collectors.toList());
         return RoleDistributionResponse.builder().distribution(distribution).build();
+    }
+
+    @Transactional
+    public void enable2fa(UUID userId, String secret) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> ApiException.notFound("User not found"));
+        user.setTotpSecret(secret);
+        user.setTotpEnabled(true);
+        userRepository.save(user);
     }
 
     @Transactional
