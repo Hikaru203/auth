@@ -1,150 +1,97 @@
-# API Testing Guide
+# SecurityHub Development & Testing Guide
 
-This document provides a comprehensive set of examples to test all major API endpoints in the Auth Service.
-
-> [!NOTE]
-> All examples assume the server is running on `http://localhost:8080`.
-> For PowerShell users, we recommend using `Invoke-RestMethod` to avoid complex escaping of JSON strings.
+This guide provides technical blueprints for interacting with the SecurityHub API and verifying system integrity.
 
 ---
 
-## 🔑 1. Authentication
+## 🔑 1. Security Initialization (Login)
 
-### Login (Obtain Tokens)
 **Endpoint:** `POST /api/v1/auth/login`
 
 > [!IMPORTANT]
-> The `totpCode` field is now **mandatory**. If you don't have 2FA enabled, use `"000000"`.
+> The `totpCode` is mandatory for all accounts. Use `"000000"` if MFA is not yet configured for the identity.
 
-**PowerShell:**
+**PowerShell Automation:**
 ```powershell
-$body = @{
+$payload = @{
     tenantSlug = "default"
     username = "admin"
     password = "Admin@123"
     totpCode = "000000"
 }
-$auth = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/auth/login" -Method Post -Body ($body | ConvertTo-Json) -ContentType "application/json"
-$accessToken = $auth.accessToken
-$refreshToken = $auth.refreshToken
-$auth
-```
-
-**curl (bash/cmd):**
-```bash
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"tenantSlug":"default","username":"admin","password":"Admin@123","totpCode":"000000"}'
-```
-
-### Refresh Access Token
-**Endpoint:** `POST /api/v1/auth/refresh`
-
-**PowerShell:**
-```powershell
-$body = @{ refreshToken = $refreshToken }
-Invoke-RestMethod -Uri "http://localhost:8080/api/v1/auth/refresh" -Method Post -Body ($body | ConvertTo-Json) -ContentType "application/json"
-```
-
-### Logout (Revoke Refresh Token)
-**Endpoint:** `POST /api/v1/auth/logout`
-
-**PowerShell:**
-```powershell
-$body = @{ refreshToken = $refreshToken }
-Invoke-RestMethod -Uri "http://localhost:8080/api/v1/auth/logout" -Method Post -Body ($body | ConvertTo-Json) -ContentType "application/json"
+$response = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/auth/login" -Method Post -Body ($payload | ConvertTo-Json) -ContentType "application/json"
+$token = $response.accessToken
 ```
 
 ---
 
-## 👤 2. User Management
+## 👤 2. Identity Operations
 
-> [!TIP]
-> Use the `$accessToken` obtained from the login step in the headers.
+### Update Security Profile
+**Endpoint:** `PUT /api/v1/users/{id}` (Auth Required)
 
-### Get Current User Profile (Me)
-**Endpoint:** `GET /api/v1/users/me`
-
-**PowerShell:**
 ```powershell
-$headers = @{ Authorization = "Bearer $accessToken" }
-Invoke-RestMethod -Uri "http://localhost:8080/api/v1/users/me" -Method Get -Headers $headers
-```
-
-### List All Users (ADMIN)
-**Endpoint:** `GET /api/v1/users?page=0&size=10`
-
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/v1/users" -Method Get -Headers $headers
-```
-
-### Create a New User (ADMIN)
-**Endpoint:** `POST /api/v1/users`
-
-**PowerShell:**
-```powershell
-$userBody = @{
-    tenantSlug = "default"
-    username = "testuser"
-    email = "test@example.local"
-    password = "User@123"
-    firstName = "Test"
-    lastName = "User"
+$headers = @{ Authorization = "Bearer $token" }
+$update = @{
+    firstName = "Security"
+    lastName = "Officer"
+    phone = "+1-555-0199"
 }
-Invoke-RestMethod -Uri "http://localhost:8080/api/v1/users" -Method Post -Body ($userBody | ConvertTo-Json) -ContentType "application/json" -Headers $headers
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/users/me" -Method Put -Body ($update | ConvertTo-Json) -ContentType "application/json" -Headers $headers
 ```
+
+### Identity Deactivation (Soft-Delete)
+**Endpoint:** `DELETE /api/v1/users/{id}`
 
 ---
 
-## 🗝️ 3. API Key Management
+## 🛡️ 3. Access Control (RBAC)
 
-### Create an API Key
-**Endpoint:** `POST /api/v1/api-keys`
+### Role Management
+**Endpoint:** `POST /api/v1/users/{id}/roles`
+- Add a new authority link between an identity and a security role.
 
-**PowerShell:**
-```powershell
-$keyBody = @{
-    name = "My Development Key"
-    scopes = @("USER_READ", "AUDIT_READ")
-    expiryDays = 30
-}
-$newKey = Invoke-RestMethod -Uri "http://localhost:8080/api/v1/api-keys" -Method Post -Body ($keyBody | ConvertTo-Json) -ContentType "application/json" -Headers $headers
-$apiKey = $newKey.apiKey
-$newKey
-```
-
-### Use an API Key
-**Endpoint:** Any protected endpoint with `X-API-Key` header.
-
-**PowerShell:**
-```powershell
-$keyHeaders = @{ "X-API-Key" = $apiKey }
-Invoke-RestMethod -Uri "http://localhost:8080/api/v1/users/me" -Method Get -Headers $keyHeaders
-```
+### Permission Synchronization
+**Endpoint:** `POST /api/v1/roles/{id}/permissions`
+- Update granular permission scopes for a specific role.
 
 ---
 
-## 🛡️ 4. 2FA Setup Flow
-
-1. **Setup**: `POST /api/v1/auth/2fa/setup` (returns secret + QR link)
-2. **Verify**: `POST /api/v1/auth/2fa/verify` (send 6-digit code + secret to enable)
-
----
-
-## 📊 5. Audit Logs (ADMIN)
+## 📊 4. Surveillance & Auditing
 
 **Endpoint:** `GET /api/v1/audit`
 
-**PowerShell:**
-```powershell
-Invoke-RestMethod -Uri "http://localhost:8080/api/v1/audit" -Method Get -Headers $headers
+**Advanced Filtering:**
+```bash
+# Filter by suspicious IP activity
+curl -G http://localhost:8080/api/v1/audit \
+  -H "Authorization: Bearer $token" \
+  -d "ipAddress=192.168.1.1" \
+  -d "action=LOGIN_FAILURE"
 ```
 
 ---
 
-## 🛠️ Troubleshooting
+## 🗝️ 5. Programmatic Access (API Keys)
 
-- **401 Unauthorized**: Check if your token has expired. Re-login or refresh.
-- **403 Forbidden**: Your user doesn't have the required Permission (e.g., `USER_READ`).
-- **500 Error**: Check the server logs at `logs/auth-service.log` for details.
+### Key Generation
+**Endpoint:** `POST /api/v1/api-keys`
+```powershell
+$keyParams = @{ name = "Surveillance-Bot"; expiresInDays = 90 }
+Invoke-RestMethod -Uri "http://localhost:8080/api/v1/api-keys" -Method Post -Body ($keyParams | ConvertTo-Json) -ContentType "application/json" -Headers $headers
+```
+
+---
+
+## 🛠️ Verification Protocols
+
+1. **JPA Identity Stability**: Verify that role assignments are persistent across identity reloads (Fixed via stable `equals`/`hashCode`).
+2. **2FA Enforcement**: Attempt login without `totpCode` and verify the system rejects the transaction.
+3. **Notification Integrity**: In the dashboard, trigger an error (e.g., invalid password) and verify the `Security Breach` error card appears instead of a browser alert.
+4. **Tenant Isolation**: Log in with a different `tenantSlug` and ensure data from the `default` tenant remains invisible.
+
+---
+
+## 🆘 Critical Support
+- **Logs**: Monitor `target/auth-service.log` for real-time security events.
+- **Troubleshooting**: If you encounter a `403 Forbidden`, ensure the identity has the `ADMIN` authority assigned in the dashboard or database.

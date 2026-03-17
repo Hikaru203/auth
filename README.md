@@ -1,251 +1,119 @@
-# Auth & Account Management Service
+# SecurityHub — Enterprise Auth Service
 
-A production-grade **Spring Boot 3.2 / Java 17** backend for authentication, user management, roles, permissions, API keys, 2FA, and audit logging — backed by PostgreSQL.
+A production-grade **Spring Boot 3.2 / Java 21** backend and **Vite / Vanilla JS** premium dashboard for authentication, identity management, and security orchestration.
 
 ---
 
-## ✨ Features
+## ✨ System Capabilities
 
-| Feature | Technology |
+| Capability | Implementation |
 |---|---|
-| JWT Authentication (RS256) | JJWT 0.12 |
-| API Key Authentication | SHA-256 hashed keys |
-| Password Hashing | BCrypt (strength 12) |
-| Two-Factor Authentication | TOTP (Google Authenticator) |
-| Rate Limiting | Bucket4j (per-IP & per-key) |
-| Multi-tenancy | Row-level isolation via `tenant_id` |
-| Audit Logging | Async, non-blocking with JSONB metadata |
-| Email Notifications | Spring Mail (Mailtrap/SMTP) |
-| API Documentation | Springdoc OpenAPI 3 / Swagger UI |
-| Database Migrations | Flyway |
+| **Identity Protection** | JWT (RS256) + Mandatory MFA Enforcement |
+| **Identity Management** | Full CRUD + Secure Profile Editing (Phone, Names) |
+| **Access Control** | RBAC/PBAC with JPA identity stability (equals/hashCode) |
+| **MFA Orchestration** | TOTP (Google Authenticator) with Setup/Verification Flow |
+| **Audit Compliance** | Multi-tenant Async Logging with IP & Geo-tracing |
+| **Premium UI** | Glassmorphism Dashboard + Custom Notification System |
+| **Resilience** | Rate Limiting (Bucket4j) + Soft-Delete Safety |
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Deployment Guide
 
 ### Prerequisites
-- **Java 21+** (Current project Target)
-- **Node.js 18+** (for Frontend Dashboard)
-- **Maven 3.8+**
-- **PostgreSQL 15+** running locally
-- **OpenSSL** (for RSA key generation)
+- **Java 21** (Required for modern security features)
+- **Node.js 18+** (Vite development environment)
+- **PostgreSQL 15+**
+- **OpenSSL** (For RSA keypair generation)
 
-### 1. Clone the Repository
+### 1. Repository Setup
 ```bash
 git clone https://github.com/Hikaru203/auth.git
 cd auth
 ```
 
-### 2. Configure Environment
-Sensitive data has been gitignored. You must set up your local environment configuration:
-1. Copy the example environment file:
+### 2. Environment Configuration
+1. Initialize your environment:
    ```bash
    cp .env.example .env
    ```
-2. Open `.env` and fill in your actual PostgreSQL database credentials.
+2. Configure your PostgreSQL connection and SMTP settings in `.env`.
 
-### 3. Database Setup
-Create a new database in PostgreSQL:
-```sql
-CREATE DATABASE authdb;
-```
+### 3. Security Hardening (Keys)
+You must generate private/public RSA keys for JWT signing:
+- **Windows**: `generate-keys.bat`
+- **Linux/Unix**: `chmod +x generate-keys.sh && ./generate-keys.sh`
 
-### 4. Generate RSA Keypair
-The application uses **RS256** for JWT signing. You must generate a keypair before starting.
-
-- **Windows**: Run `generate-keys.bat`
-- **Linux/Mac**: Run `chmod +x generate-keys.sh && ./generate-keys.sh`
-
-Keys will be saved to `src/main/resources/keys/` (excluded from Git).
-
-### 5. Run the Application
-#### Backend (Java Spring Boot)
+### 4. System Launch
+#### Security Backend
 ```bash
 mvn spring-boot:run
 ```
-- **API URL**: `http://localhost:8080/api/v1`
-- **Swagger UI**: `http://localhost:8080/swagger-ui/index.html`
+- **API Mainframe**: `http://localhost:8080/api/v1`
+- **OpenAPI Schema**: `http://localhost:8080/v3/api-docs`
 
-#### Frontend (Dashboard Interface)
-Navigate to the frontend directory and start the Vite dev server:
+#### Security Dashboard
 ```bash
 cd dashboard-web
 npm install
 npm run dev
 ```
+- **Interface**: `http://localhost:5173`
 
 ---
 
-## 🔑 Authentication
+## 🔒 Security Operations
 
-### JWT Bearer Token
+### Identity Initialization
+The system enforces a strict identity flow. New identities can be initialized with assigned roles immediately.
 
-> [!IMPORTANT]
-> The `totpCode` field is now **mandatory** in the login request. Use `"000000"` if 2FA is not enabled for the user.
+### MFA Flow
+1. **Setup**: Call `/auth/2fa/setup` to receive a QR code.
+2. **Verification**: Confirm with a 6-digit code to activate protection.
+3. **Enforcement**: Once enabled, the system requires a valid TOTP code for every login session.
 
-```bash
-# 1. Login
-curl -X POST http://localhost:8080/api/v1/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tenantSlug": "default",
-    "username": "admin",
-    "password": "Admin@123",
-    "totpCode": "000000"
-  }'
+### Premium Notifications
+Standard browser `alert()` and `confirm()` have been deprecated. The system now uses a **Success/Error/Warning notification engine** with premium transitions and glassmorphism styling.
 
-# 2. Use Access Token
-curl http://localhost:8080/api/v1/users/me \
-  -H "Authorization: Bearer <accessToken>"
+---
+
+## 📋 Standard Protocol
+
+| Context | Default Identity |
+|---|---|
+| **Tenant** | `default` |
+| **Username** | `admin` |
+| **Credential** | `Admin@123` |
+
+---
+
+## 📊 Identity Hierarchy
+```
+Mainframe ──┬─ Tenants (Enterprise Boundaries)
+            │
+            ├─ Identities (Users) ── Roles ── Permissions
+            │
+            ├─ Security Keys (API Tokens)
+            │
+            └─ Audit Vault (Security Events)
 ```
 
-### Full API Guide
-For detailed instructions and examples for every endpoint (User Management, Roles, API Keys, etc.), please refer to:
+---
+
+## 🧪 Verification & Testing
+Detailed API interaction guides, PowerShell automation scripts, and cURL examples for manual security testing are available in:
 👉 **[TESTING.md](./TESTING.md)**
 
 ---
 
-## 📋 Default Credentials
-
-| Field | Value |
-|---|---|
-| Tenant Slug | `default` |
-| Username | `admin` |
-| Password | `Admin@123` |
-
----
-
-## 📡 API Endpoints
-
-| Method | Path | Description | Auth |
-|---|---|---|---|
-| POST | `/api/v1/auth/login` | Login | Public |
-| POST | `/api/v1/auth/refresh` | Refresh token | Public |
-| POST | `/api/v1/auth/logout` | Logout | Bearer |
-| POST | `/api/v1/auth/password/reset-request` | Password reset email | Public |
-| POST | `/api/v1/auth/password/reset` | Complete reset | Public |
-| POST | `/api/v1/auth/password/change` | Change password | Bearer |
-| POST | `/api/v1/auth/2fa/setup` | Setup TOTP 2FA | Bearer |
-| GET | `/api/v1/users` | List users | ADMIN |
-| POST | `/api/v1/users` | Create user | ADMIN |
-| GET | `/api/v1/users/me` | My profile | Bearer |
-| POST | `/api/v1/users/{id}/lock` | Lock user | ADMIN |
-| GET | `/api/v1/roles` | List roles | Bearer |
-| POST | `/api/v1/roles` | Create role | ADMIN |
-| GET | `/api/v1/api-keys` | My API keys | Bearer |
-| POST | `/api/v1/api-keys` | Generate key | Bearer |
-| POST | `/api/v1/api-keys/{id}/revoke` | Revoke key | Bearer |
-| GET | `/api/v1/audit` | Audit logs | ADMIN |
-| GET | `/api/v1/tenants` | List tenants | SUPER_ADMIN |
-
-Full interactive docs: `http://localhost:8080/swagger-ui/index.html`
-
----
-
-## 🔐 Security Architecture
-
-```
-Request
-  │
-  ├── RateLimitingFilter  (IP blacklist + login/API rate limits)
-  │
-  ├── ApiKeyAuthenticationFilter  (X-API-Key header → SHA-256 hash lookup)
-  │
-  ├── JwtAuthenticationFilter     (Authorization: Bearer → RS256 verify)
-  │
-  └── Spring Security
-        └── @PreAuthorize("hasAuthority('USER_READ')")
-```
-
-### Password Policy
-- Minimum 8 characters
-- At least 1 uppercase, 1 lowercase, 1 digit, 1 special character
-- Maximum age: 90 days
-
-### Account Lockout
-- Locks after **5 failed attempts**
-- Lockout duration: **30 minutes**
-- Email notification sent on lock
-
----
-
-## 🗄️ Database Schema
-
-```
-tenants ─┬─ users ──────── user_roles ── roles ── role_permissions ── permissions
-          │                    │
-          ├─ api_keys          └── refresh_tokens
-          │
-          ├─ audit_logs
-          └─ ip_rules
-```
-
----
-
-## ⚙️ Configuration Reference
-
-| Property | Default | Description |
-|---|---|---|
-| `jwt.access-token-expiry-ms` | 900000 (15m) | Access token lifetime |
-| `jwt.refresh-token-expiry-ms` | 604800000 (7d) | Refresh token lifetime |
-| `app.security.account-lockout.max-failed-attempts` | 5 | Login failures before lock |
-| `app.security.rate-limit.login-requests-per-minute` | 10 | Max login attempts/min/IP |
-| `app.security.rate-limit.api-requests-per-minute` | 100 | Max API calls/min/key |
-| `app.security.api-key.max-keys-per-user` | 10 | Max active API keys per user |
-
----
-
-## 🧪 Tests
-
-The project includes unit tests for Service, Controller, and Utility layers.
-
-```bash
-# Run all tests
-mvn test
-
-# Run specific tests
-mvn test -Dtest=AuthServiceTest
-mvn test -Dtest=AuthControllerTest
-mvn test -Dtest=UserServiceTest
-
-# Skip tests for faster build
-mvn package -DskipTests
-```
-
----
-
-## 📧 Email (Notifications)
-
-Configure SMTP in `application.yml`:
-```yaml
-spring:
-  mail:
-    host: smtp.mailtrap.io
-    port: 587
-    username: YOUR_USERNAME
-    password: YOUR_PASSWORD
-```
-
-For local development, use [Mailtrap](https://mailtrap.io) (free tier).
-
----
-
-## 📁 Project Structure
-
+## 📁 Intelligence Structure
 ```
 src/main/java/com/auth/
-├── config/          # Security, JWT, Swagger, Async configs
-├── controller/      # REST controllers
-├── domain/          # JPA entities
-├── dto/             # Request/Response DTOs
-├── exception/       # ApiException + GlobalExceptionHandler
-├── repository/      # Spring Data JPA repositories
-├── security/        # JWT utils, filters, UserDetails
-├── service/         # Business logic
-└── util/            # HashUtils, RequestUtils
-
-src/main/resources/
-├── db/migration/    # Flyway SQL migrations (V1, V2)
-├── keys/            # RSA keypair (gitignored)
-└── application.yml  # Main configuration
+├── config/          # Enterprise Security Configuration
+├── controller/      # API Interface Layer
+├── domain/          # Identity Entities (JPA)
+├── security/        # JWT, Filters, & MFA Logic
+├── service/         # Security Business Logic
+└── util/            # Cryptographic Utilities
 ```
+
