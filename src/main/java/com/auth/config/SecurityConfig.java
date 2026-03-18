@@ -92,27 +92,5 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-    @Bean
-    public org.springframework.boot.web.servlet.FilterRegistrationBean<org.springframework.web.filter.CorsFilter> corsFilter() {
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        CorsConfiguration config = new CorsConfiguration();
-        SecurityProperties.Cors corsProps = securityProperties.getCors();
 
-        String[] origins = corsProps.getAllowedOrigins().split(",");
-        for (String origin : origins) {
-            config.addAllowedOrigin(origin.trim());
-        }
-
-        config.setAllowedMethods(Arrays.asList(corsProps.getAllowedMethods().split(",")));
-        config.setAllowedHeaders(List.of("*"));
-        config.setAllowCredentials(true);
-        config.setMaxAge(corsProps.getMaxAge());
-
-        source.registerCorsConfiguration("/**", config);
-        
-        org.springframework.boot.web.servlet.FilterRegistrationBean<org.springframework.web.filter.CorsFilter> bean = 
-            new org.springframework.boot.web.servlet.FilterRegistrationBean<>(new org.springframework.web.filter.CorsFilter(source));
-        bean.setOrder(org.springframework.core.Ordered.HIGHEST_PRECEDENCE);
-        return bean;
-    }
 }

@@ -4,6 +4,7 @@ import com.auth.config.SecurityProperties;
 import com.auth.domain.User;
 import com.auth.domain.UserStatus;
 import com.auth.repository.RoleRepository;
+import com.auth.repository.TenantRepository;
 import com.auth.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -42,9 +43,12 @@ class UserServiceTest {
     private UUID userId;
     private User user;
 
+    @Mock
+    private TenantRepository tenantRepository;
+
     @BeforeEach
     void setUp() {
-        userService = new UserService(userRepository, roleRepository, passwordEncoder, securityProperties);
+        userService = new UserService(userRepository, roleRepository, tenantRepository, passwordEncoder, securityProperties);
         tenantId = UUID.randomUUID();
         userId = UUID.randomUUID();
         user = User.builder()
