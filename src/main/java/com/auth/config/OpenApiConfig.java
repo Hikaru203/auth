@@ -19,7 +19,8 @@ import org.springframework.context.annotation.Configuration;
         contact = @Contact(name = "Auth Service Team", email = "admin@auth-service.local")
     ),
     servers = {
-        @Server(url = "http://localhost:8080", description = "Local development")
+        @Server(url = "http://localhost:8080", description = "Local development"),
+        @Server(url = "https://pm-auth-service.onrender.com", description = "Production Render")
     }
 )
 public class OpenApiConfig {

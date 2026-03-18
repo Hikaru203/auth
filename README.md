@@ -263,45 +263,49 @@ The **Audit Vault** is your system's digital flight recorder.
 
 ---
 
-## 🔧 Deployment & Hardening
+## 🚀 Hướng dẫn cài đặt & Chạy ứng dụng
 
-### Prerequisites
-- **Production Server**: 2 vCPU, 4GB RAM minimum recommended.
-- **OS**: Linux (Ubuntu 22.04 LTS preferred) or Windows Server.
-- **Database**: PostgreSQL 15 or 16.
+### 1. Phím tắt chạy nhanh (Windows)
+Sử dụng script `run.ps1` ở thư mục gốc của project-manager để quản lý cả 2 service.
 
-### Local Development Setup
-1. **Source Control**:
-   ```bash
-   git clone https://github.com/Hikaru203/auth.git
-   cd auth
+### 2. Chạy Local (Development)
+1. **Database**: Đảm bảo PostgreSQL đang chạy và có database `authdb`.
+2. **RSA Keys**: Tạo cặp khóa nếu chưa có:
+   ```powershell
+   .\generate-keys.bat
    ```
-2. **Environment**:
-   Copy the example and fill in your secrets.
-   ```bash
-   cp .env.example .env
-   ```
-3. **Identity Keys**:
-   Generate the RSA pair for your environment.
-   ```bash
-   .\generate-keys.bat  # Windows
-   ./generate-keys.sh   # Linux
-   ```
-4. **Database Init**:
-   Ensure PostgreSQL is running and your `authdb` is created.
-5. **System Launch**:
-   ```bash
+3. **Build & Run**:
+   ```powershell
+   mvn clean install -DskipTests
    mvn spring-boot:run
    ```
+   API sẽ chạy tại: `http://localhost:8080`
 
-### Production Hardening
-> [!IMPORTANT]
-> Never use the default `Admin@123` password in a production environment.
+### 3. Chạy bằng Docker
+Xây dựng image và chạy container:
+```bash
+docker build -t auth-service .
+docker run -p 8080:8080 --env-file .env auth-service
+```
 
-1.  **Enable HTTPS**: SecurityHub must run behind a TLS-enabled proxy (Nginx/HAProxy).
-2.  **Firewalling**: Only expose port `443`. Keep `8080` and `5432` internal.
-3.  **Key Rotation**: Periodically rotate your RSA keys and JWT secrets.
-4.  **SMTP Alerts**: Configure `spring.mail` to receive account lockout and security breach notifications.
+### 4. Triển khai lên Render (Free Tier)
+1. **Tạo Web Service**: Kết nối với repository chứa source `auth-src`.
+2. **Build Command**: `mvn clean package -DskipTests`
+3. **Start Command**: `java -Xmx400m -jar target/auth-service-1.0.0.jar`
+4. **Environment Variables**:
+   - `SPRING_DATASOURCE_URL`: URL database Render (External connection string).
+   - `SPRING_DATASOURCE_USERNAME`: user database.
+   - `SPRING_DATASOURCE_PASSWORD`: password database.
+   - `APP_CORS_ALLOWED_ORIGINS`: URL frontend của bạn (VD: `https://your-frontend.vercel.app`) hoặc `*` để test.
+
+---
+
+## 🔐 Cấu hình Bảo mật & CORS
+Hệ thống hỗ trợ cấu hình CORS linh hoạt qua biến môi trường để tránh lỗi "Failed to fetch" khi deploy.
+
+**Lưu ý quan trọng khi Deploy:**
+- **URL Scheme**: Luôn sử dụng `https://` cho các endpoint production.
+- **CORS**: Domain frontend phải được thêm vào danh sách `APP_CORS_ALLOWED_ORIGINS`.
 
 ---
 

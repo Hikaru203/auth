@@ -18,9 +18,12 @@ public class NotificationService {
     @Value("${spring.mail.from:noreply@auth-service.local}")
     private String fromEmail;
 
+    @Value("${app.frontend.url:http://localhost:3000}")
+    private String frontendUrl;
+
     @Async
     public void sendPasswordResetEmail(String email, String name, String token) {
-        String resetUrl = "http://localhost:3000/reset-password?token=" + token;
+        String resetUrl = frontendUrl + "/reset-password?token=" + token;
         String subject = "Password Reset Request";
         String body = String.format("""
                 Hello %s,
