@@ -54,6 +54,9 @@ class AuthControllerTest {
     @MockBean
     private com.auth.repository.IpRuleRepository ipRuleRepository;
 
+    @MockBean
+    private com.auth.service.AuditLogService auditLogService;
+
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
         com.auth.config.SecurityProperties.Cors cors = new com.auth.config.SecurityProperties.Cors();

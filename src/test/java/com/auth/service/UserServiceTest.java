@@ -64,6 +64,7 @@ class UserServiceTest {
         when(userRepository.existsByTenantIdAndUsername(any(), any())).thenReturn(false);
         when(userRepository.existsByTenantIdAndEmail(any(), any())).thenReturn(false);
         when(passwordEncoder.encode(any())).thenReturn("hashed");
+        when(tenantRepository.findById(any())).thenReturn(Optional.of(new com.auth.domain.Tenant()));
         when(userRepository.save(any())).thenReturn(user);
 
         User result = userService.createUser(tenantId, "testuser", "test@example.com", "pass", "First", "Last", "123");
