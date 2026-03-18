@@ -13,7 +13,7 @@ WORKDIR /app
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-COPY --from=build /app/target/auth-service-*.jar app.jar
+COPY --from=build /app/target/auth-service-[0-9]*.jar app.jar
 COPY --from=build /app/src/main/resources/keys/ keys/
 
 RUN chown -R appuser:appgroup /app
@@ -21,6 +21,6 @@ USER appuser
 
 EXPOSE 8080
 
-ENV JAVA_OPTS="-Xms256m -Xmx512m"
+ENV JAVA_OPTS="-Xms256m -Xmx400m"
 
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
