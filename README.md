@@ -270,11 +270,15 @@ Sử dụng script `run.ps1` ở thư mục gốc của project-manager để qu
 
 ### 2. Chạy Local (Development)
 1. **Database**: Đảm bảo PostgreSQL đang chạy và có database `authdb`.
-2. **RSA Keys**: Tạo cặp khóa nếu chưa có:
+2. **Environment**: Sao chép file mẫu và cấu hình các biến cần thiết:
+   ```bash
+   cp .env.example .env
+   ```
+3. **RSA Keys**: Tạo cặp khóa nếu chưa có:
    ```powershell
    .\generate-keys.bat
    ```
-3. **Build & Run**:
+4. **Build & Run**:
    ```powershell
    mvn clean install -DskipTests
    mvn spring-boot:run
@@ -342,6 +346,9 @@ The system is highly configurable via `application.yml` or environment variables
 | `MFA_REQUIRED` | `false` | Force MFA globally |
 | `RATE_LIMIT_LOGIN` | `10` | Logins per minute per IP |
 | `DB_POOL_SIZE` | `10` | Max database connections |
+
+### Environment Variables (.env)
+Hệ thống ưu tiên đọc cấu hình từ biến môi trường hoặc file `.env`. Xem chi tiết tại [`.env.example`](.env.example).
 
 ---
 
