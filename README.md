@@ -263,18 +263,22 @@ The **Audit Vault** is your system's digital flight recorder.
 
 ---
 
-## 🚀 Hướng dẫn cài đặt & Chạy ứng dụng
+- [English](README.md) | [Tiếng Việt](README_VI.md) | [中文](README_ZH.md)
 
-### 1. Phím tắt chạy nhanh (Windows)
-Sử dụng script `run.ps1` ở thư mục gốc của project-manager để quản lý cả 2 service.
+---
 
-### 2. Chạy Local (Development)
-1. **Database**: Đảm bảo PostgreSQL đang chạy và có database `authdb`.
-2. **Environment**: Sao chép file mẫu và cấu hình các biến cần thiết:
+## 🚀 Installation & Getting Started
+
+### 1. Quick Start Shortcuts (Windows)
+Use the `run.ps1` script in the root of `project-manager` to manage both services simultaneously.
+
+### 2. Running Locally (Development)
+1. **Database**: Ensure PostgreSQL is running and create a database named `authdb`.
+2. **Environment**: Copy the template and configure the necessary variables:
    ```bash
    cp .env.example .env
    ```
-3. **RSA Keys**: Tạo cặp khóa nếu chưa có:
+3. **RSA Keys**: Generate key pairs if not present:
    ```powershell
    .\generate-keys.bat
    ```
@@ -283,33 +287,33 @@ Sử dụng script `run.ps1` ở thư mục gốc của project-manager để qu
    mvn clean install -DskipTests
    mvn spring-boot:run
    ```
-   API sẽ chạy tại: `http://localhost:8080`
+   API will be available at: `http://localhost:8080`
 
-### 3. Chạy bằng Docker
-Xây dựng image và chạy container:
+### 3. Running with Docker
+Build the image and run the container:
 ```bash
 docker build -t auth-service .
 docker run -p 8080:8080 --env-file .env auth-service
 ```
 
-### 4. Triển khai lên Render (Free Tier)
-1. **Tạo Web Service**: Kết nối với repository chứa source `auth-src`.
+### 4. Deploying to Render (Free Tier)
+1. **Create Web Service**: Connect to your repository containing the `auth-src` source.
 2. **Build Command**: `mvn clean package -DskipTests`
 3. **Start Command**: `java -Xmx400m -jar target/auth-service-1.0.0.jar`
 4. **Environment Variables**:
-   - `SPRING_DATASOURCE_URL`: URL database Render (External connection string).
-   - `SPRING_DATASOURCE_USERNAME`: user database.
-   - `SPRING_DATASOURCE_PASSWORD`: password database.
-   - `APP_CORS_ALLOWED_ORIGINS`: URL frontend của bạn (VD: `https://your-frontend.vercel.app`) hoặc `*` để test.
+   - `SPRING_DATASOURCE_URL`: Render Database URL (External connection string).
+   - `SPRING_DATASOURCE_USERNAME`: database user.
+   - `SPRING_DATASOURCE_PASSWORD`: database password.
+   - `APP_CORS_ALLOWED_ORIGINS`: Your frontend URL (e.g., `https://your-frontend.vercel.app`) or `*` for testing.
 
 ---
 
-## 🔐 Cấu hình Bảo mật & CORS
-Hệ thống hỗ trợ cấu hình CORS linh hoạt qua biến môi trường để tránh lỗi "Failed to fetch" khi deploy.
+## 🔐 Security Configuration & CORS
+The system supports flexible CORS configuration via environment variables to prevent "Failed to fetch" errors when deployed.
 
-**Lưu ý quan trọng khi Deploy:**
-- **URL Scheme**: Luôn sử dụng `https://` cho các endpoint production.
-- **CORS**: Domain frontend phải được thêm vào danh sách `APP_CORS_ALLOWED_ORIGINS`.
+**Important Deployment Notes:**
+- **URL Scheme**: Always use `https://` for production endpoints.
+- **CORS**: The frontend domain must be added to the `APP_CORS_ALLOWED_ORIGINS` list.
 
 ---
 
