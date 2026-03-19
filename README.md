@@ -63,7 +63,7 @@ Virtual organization boundaries allow a single deployment to serve multiple ente
 ### 📊 Security Surveillance
 Real-time tracking of IP origins, user agents, and transaction outcomes across the entire fleet.
 ### 🗝️ Programmatic Access
-Issue and manage high-entropy API keys with granular expiration and activity tracking.
+Issue and manage high-entropy API keys with secure **HMAC-SHA256 signature** validation, mandatory **X-Timestamp** anti-replay protection, and granular activity tracking.
 ### 📱 Adaptive MFA
 Integrated TOTP (Time-based One-Time Password) flow that can be enforced globally or per-user.
 ### 🛠️ Administrative Mastery
@@ -98,7 +98,7 @@ Every request entering the mainframe undergoes a rigorous multi-stage validation
 1.  **Ingress Layer (Rate Limiting)**: Uses a Token Bucket algorithm (Bucket4j) to prevent brute-force attacks and DDoS at the IP level.
 2.  **Authentication Layer**:
     *   **Bearer Processor**: Validates JWT signatures using a 2048-bit RSA public key.
-    *   **Key Processor**: Validates `X-API-Key` headers against an HMAC-SHA256 registry.
+    *   **Key Processor**: Validates `X-API-Key`, `X-Timestamp`, and `X-Signature` headers. Uses HMAC-SHA256 for integrity and timestamp-based replay protection. Optimized with **Hibernate JOIN FETCH** for high-speed permission resolution.
 3.  **Security Context**: Once identified, the identity is loaded into a thread-local context with its respective tenant boundary.
 4.  **Authorization Layer**: Method-level security (@PreAuthorize) verifies if the identity has the requisite atomic permissions.
 5.  **MFA Check**: If the identity is protected by 2FA, the system verifies if the current session has been elevated via a TOTP code.
