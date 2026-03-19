@@ -247,6 +247,30 @@ docker build -t auth-service .
 docker run -p 8080:8080 --env-file .env auth-service
 ```
 
+### 4. Triển khai trên Máy chủ Riêng (VPS / Dedicated Server)
+Dành cho việc tự lưu trữ hoặc triển khai nội bộ:
+
+1.  **Chuẩn bị Môi trường**: Cài đặt Docker và Nginx.
+2.  **Cấu hình**:
+    - Thiết lập file `.env` với thông tin cơ sở dữ liệu sản xuất.
+    - Đảm bảo các khóa RSA trong thư mục `keys/` đã được tạo.
+3.  **Khởi chạy**:
+    ```bash
+    docker build -t auth-service .
+    docker run -d --name auth-service -p 8080:8080 --env-file .env auth-service
+    ```
+4.  **Reverse Proxy (Nginx)**: Cấu hình Nginx để xử lý SSL và điều hướng:
+    ```nginx
+    server {
+        server_name auth.yourdomain.com;
+        location / {
+            proxy_pass http://localhost:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+    ```
+
 ---
 
 ## 📡 Tài liệu API

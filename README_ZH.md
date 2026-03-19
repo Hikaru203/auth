@@ -195,6 +195,30 @@ docker build -t auth-service .
 docker run -p 8080:8080 --env-file .env auth-service
 ```
 
+### 3. 在自定义服务器上部署 (VPS / 独立服务器)
+适用于私有托管或本地部署：
+
+1.  **环境配置**: 安装 Docker 和 Nginx。
+2.  **配置步骤**:
+    - 为生产数据库设置 `.env` 文件。
+    - 确保 `keys/` 文件夹中的 RSA 密钥已生成。
+3.  **运行**:
+    ```bash
+    docker build -t auth-service .
+    docker run -d --name auth-service -p 8080:8080 --env-file .env auth-service
+    ```
+4.  **反向代理 (Nginx)**: 配置 Nginx 以处理 SSL 并进行路由：
+    ```nginx
+    server {
+        server_name auth.yourdomain.com;
+        location / {
+            proxy_pass http://localhost:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+    ```
+
 ---
 
 ## 📡 API 参考总表

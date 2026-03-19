@@ -306,6 +306,30 @@ docker run -p 8080:8080 --env-file .env auth-service
    - `SPRING_DATASOURCE_PASSWORD`: database password.
    - `APP_CORS_ALLOWED_ORIGINS`: Your frontend URL (e.g., `https://your-frontend.vercel.app`) or `*` for testing.
 
+### 5. Deploying to Custom Server (VPS / Dedicated)
+For private hosting or on-premise deployment:
+
+1.  **Environment Setup**: Install Docker, Docker Compose, and Nginx.
+2.  **Configuration**:
+    - Setup your `.env` file with production database credentials.
+    - Ensure your RSA `keys/` are generated and available in the container.
+3.  **Run**:
+    ```bash
+    docker build -t auth-service .
+    docker run -d --name auth-service -p 8080:8080 --env-file .env auth-service
+    ```
+4.  **Reverse Proxy (Nginx)**: Configure Nginx for SSL (Certbot) and routing:
+    ```nginx
+    server {
+        server_name auth.yourdomain.com;
+        location / {
+            proxy_pass http://localhost:8080;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+    }
+    ```
+
 ---
 
 ## 🔐 Security Configuration & CORS
