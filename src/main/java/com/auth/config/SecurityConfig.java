@@ -1,7 +1,10 @@
 package com.auth.config;
 
-import com.auth.security.ApiKeyAuthenticationFilter;
-import com.auth.security.JwtAuthenticationFilter;
+import com.auth.security.*;
+import com.auth.repository.ApiKeyRepository;
+import com.auth.repository.IpRuleRepository;
+import com.auth.service.AuditLogService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -18,12 +21,14 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -31,9 +36,11 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
-    private final ApiKeyAuthenticationFilter apiKeyAuthenticationFilter;
-    private final com.auth.security.AuditLoggingFilter auditLoggingFilter;
+    private final JwtUtils jwtUtils;
+    private final ApiKeyRepository apiKeyRepository;
+    private final AuditLogService auditLogService;
+    private final IpRuleRepository ipRuleRepository;
+    private final ObjectMapper objectMapper;
     private final SecurityProperties securityProperties;
 
     @Value("${app.cors.allowed-origins:https://hikaru203.github.io,http://localhost:3000,http://localhost:5173}")
@@ -58,14 +65,18 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session ->
                 session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(PUBLIC_PATHS).permitAll()
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .anyRequest().authenticated()
-            )
-            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(apiKeyAuthenticationFilter, JwtAuthenticationFilter.class)
-            .addFilterAfter(auditLoggingFilter, UsernamePasswordAuthenticationFilter.class)
+            .authorizeHttpRequests(auth -> {
+                // Use explicit AntPathRequestMatcher for public paths
+                for (String path : PUBLIC_PATHS) {
+                    auth.requestMatchers(new AntPathRequestMatcher(path)).permitAll();
+                }
+                auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                    .anyRequest().authenticated();
+            })
+            .addFilterBefore(rateLimitingFilter(), UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(apiKeyAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class)
+            .addFilterAfter(auditLoggingFilter(), UsernamePasswordAuthenticationFilter.class)
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(401);
@@ -114,6 +125,27 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
+    }
+
+    // Manual Filter Beans (to avoid double registration)
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter() {
+        return new JwtAuthenticationFilter(jwtUtils, objectMapper);
+    }
+
+    @Bean
+    public ApiKeyAuthenticationFilter apiKeyAuthenticationFilter() {
+        return new ApiKeyAuthenticationFilter(apiKeyRepository, objectMapper);
+    }
+
+    @Bean
+    public AuditLoggingFilter auditLoggingFilter() {
+        return new AuditLoggingFilter(auditLogService);
+    }
+
+    @Bean
+    public RateLimitingFilter rateLimitingFilter() {
+        return new RateLimitingFilter(securityProperties, ipRuleRepository, objectMapper);
     }
 
 

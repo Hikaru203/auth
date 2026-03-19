@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-@Component
 @RequiredArgsConstructor
 @Slf4j
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
