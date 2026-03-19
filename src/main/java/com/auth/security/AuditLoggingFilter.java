@@ -18,6 +18,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Component
 @RequiredArgsConstructor
 @Slf4j
 public class AuditLoggingFilter extends OncePerRequestFilter {

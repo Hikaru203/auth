@@ -16,7 +16,13 @@ import java.util.UUID;
 @Repository
 public interface ApiKeyRepository extends JpaRepository<ApiKey, UUID> {
 
-    Optional<ApiKey> findByKeyHash(String keyHash);
+    @Query("SELECT k FROM ApiKey k " +
+           "JOIN FETCH k.user u " +
+           "JOIN FETCH u.roles r " +
+           "JOIN FETCH r.permissions " +
+           "JOIN FETCH k.tenant " +
+           "WHERE k.keyHash = :keyHash")
+    Optional<ApiKey> findByKeyHash(@Param("keyHash") String keyHash);
 
     Page<ApiKey> findAllByUserId(UUID userId, Pageable pageable);
 
