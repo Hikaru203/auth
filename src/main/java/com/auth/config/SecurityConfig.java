@@ -36,7 +36,7 @@ public class SecurityConfig {
     private final com.auth.security.AuditLoggingFilter auditLoggingFilter;
     private final SecurityProperties securityProperties;
 
-    @Value("${app.cors.allowed-origins:*}")
+    @Value("${app.cors.allowed-origins:https://hikaru203.github.io,http://localhost:3000,http://localhost:5173}")
     private String allowedOrigins;
 
     private static final String[] PUBLIC_PATHS = {

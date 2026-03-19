@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final String API_KEY_HEADER = "X-API-Key";
+    private static final String API_KEY_HEADER = "x-api-key";
 
     private final ApiKeyRepository apiKeyRepository;
     private final ObjectMapper objectMapper;
@@ -45,6 +45,28 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
         String rawKey = request.getHeader(API_KEY_HEADER);
 
         if (StringUtils.hasText(rawKey) && SecurityContextHolder.getContext().getAuthentication() == null) {
+            String timestamp = request.getHeader("x-timestamp");
+            String signature = request.getHeader("x-signature");
+
+            if (!StringUtils.hasText(timestamp) || !StringUtils.hasText(signature)) {
+                sendUnauthorized(response, "Missing security headers (x-timestamp or x-signature)");
+                return;
+            }
+
+            // Time check (5 mins)
+            try {
+                long ts = Long.parseLong(timestamp);
+                long now = Instant.now().getEpochSecond();
+                if (Math.abs(now - ts) > 300) {
+                    sendUnauthorized(response, "Request expired (TTL: 5m)");
+                    return;
+                }
+            } catch (NumberFormatException e) {
+                sendUnauthorized(response, "Invalid x-timestamp format");
+                return;
+            }
+
+            // Key lookup
             String keyHash = HashUtils.sha256(rawKey);
             Optional<ApiKey> apiKeyOpt = apiKeyRepository.findByKeyHash(keyHash);
 
@@ -56,20 +78,52 @@ public class ApiKeyAuthenticationFilter extends OncePerRequestFilter {
                     return;
                 }
 
+                // Signature verification
+                // signature = hex(sha256(rawKey + timestamp + body))
+                // For now, if no body is present (GET), we use rawKey + timestamp
+                String body = ""; // Simplification: in a real proxy, you'd read the cached body
+                String expectedSignature = HashUtils.sha256(rawKey + timestamp + body);
+                
+                if (!expectedSignature.equalsIgnoreCase(signature)) {
+                    sendUnauthorized(response, "Invalid x-signature");
+                    return;
+                }
+
                 // Update last used
                 apiKey.setLastUsedAt(Instant.now());
                 apiKey.setLastUsedIp(getClientIp(request));
                 apiKeyRepository.save(apiKey);
 
-                List<SimpleGrantedAuthority> authorities = Arrays.stream(
-                        apiKey.getScopes() != null ? apiKey.getScopes() : new String[0])
-                        .map(SimpleGrantedAuthority::new)
-                        .collect(Collectors.toList());
+                List<SimpleGrantedAuthority> authorities;
+                if (apiKey.getScopes() != null && apiKey.getScopes().length > 0) {
+                    authorities = Arrays.stream(apiKey.getScopes())
+                            .map(SimpleGrantedAuthority::new)
+                            .collect(Collectors.toList());
+                } else {
+                    authorities = apiKey.getUser().getRoles().stream()
+                            .flatMap(role -> role.getPermissions().stream())
+                            .map(p -> new SimpleGrantedAuthority(p.getName()))
+                            .collect(Collectors.toList());
+                }
+
+                CustomUserDetails userDetails = CustomUserDetails.builder()
+                        .id(apiKey.getUser().getId())
+                        .tenantId(apiKey.getTenant().getId())
+                        .tenantSlug(apiKey.getTenant().getSlug())
+                        .username(apiKey.getUser().getUsername())
+                        .password("") 
+                        .authorities(authorities)
+                        .enabled(true)
+                        .accountNonLocked(true)
+                        .accountNonExpired(true)
+                        .credentialsNonExpired(true)
+                        .build();
 
                 ApiKeyAuthentication authentication = new ApiKeyAuthentication(
                         apiKey.getId(),
                         apiKey.getUser().getId(),
                         apiKey.getTenant().getId(),
+                        userDetails,
                         authorities
                 );
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));

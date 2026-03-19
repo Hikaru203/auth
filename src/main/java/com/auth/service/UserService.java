@@ -35,6 +35,10 @@ public class UserService {
         return userRepository.findAllByTenantId(tenantId, pageable);
     }
 
+    public Page<User> searchUsers(UUID tenantId, String search, Pageable pageable) {
+        return userRepository.searchByTenantId(tenantId, search, pageable);
+    }
+
     @Transactional
     public User createUser(UUID tenantId, String username, String email, String password,
                           String firstName, String lastName, String phone) {

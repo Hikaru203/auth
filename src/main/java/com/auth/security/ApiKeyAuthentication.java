@@ -13,13 +13,15 @@ public class ApiKeyAuthentication extends AbstractAuthenticationToken {
     private final UUID apiKeyId;
     private final UUID userId;
     private final UUID tenantId;
+    private final Object principal;
 
-    public ApiKeyAuthentication(UUID apiKeyId, UUID userId, UUID tenantId,
-                                Collection<? extends GrantedAuthority> authorities) {
+    public ApiKeyAuthentication(UUID apiKeyId, UUID userId, UUID tenantId, Object principal,
+                                 Collection<? extends GrantedAuthority> authorities) {
         super(authorities);
         this.apiKeyId = apiKeyId;
         this.userId = userId;
         this.tenantId = tenantId;
+        this.principal = principal;
         setAuthenticated(true);
     }
 
@@ -30,6 +32,6 @@ public class ApiKeyAuthentication extends AbstractAuthenticationToken {
 
     @Override
     public Object getPrincipal() {
-        return userId.toString();
+        return principal;
     }
 }

@@ -36,16 +36,23 @@ public class UserController {
     private final TenantService tenantService;
 
     @GetMapping
-    @Operation(summary = "List users (paginated)")
+    @Operation(summary = "List/Search users (paginated)")
     @PreAuthorize("hasAuthority('USER_READ')")
     public ResponseEntity<PageResponse<UserResponse>> listUsers(
+            @RequestParam(required = false) String search,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sort,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
 
-        Page<User> users = userService.listUsers(currentUser.getTenantId(),
-                PageRequest.of(page, size, Sort.by(sort).descending()));
+        Page<User> users;
+        if (search != null && !search.trim().isEmpty()) {
+            users = userService.searchUsers(currentUser.getTenantId(), search,
+                    PageRequest.of(page, size, Sort.by(sort).descending()));
+        } else {
+            users = userService.listUsers(currentUser.getTenantId(),
+                    PageRequest.of(page, size, Sort.by(sort).descending()));
+        }
         return ResponseEntity.ok(PageResponse.from(users.map(this::toResponse)));
     }
 

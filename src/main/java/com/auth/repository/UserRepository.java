@@ -29,6 +29,14 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     @Query("SELECT u FROM User u WHERE u.tenant.id = :tenantId")
     Page<User> findAllByTenantId(@Param("tenantId") UUID tenantId, Pageable pageable);
 
+    @Query("SELECT u FROM User u WHERE u.tenant.id = :tenantId " +
+           "AND (:search IS NULL OR :search = '' " +
+           "OR LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(u.firstName) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(u.lastName) LIKE LOWER(CONCAT('%', :search, '%')))")
+    Page<User> searchByTenantId(@Param("tenantId") UUID tenantId, @Param("search") String search, Pageable pageable);
+
     boolean existsByTenantIdAndUsername(UUID tenantId, String username);
 
     boolean existsByTenantIdAndEmail(UUID tenantId, String email);

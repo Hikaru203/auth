@@ -1,4 +1,7 @@
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api/v1';
+const API_URL = import.meta.env.DEV
+    ? 'http://localhost:8080/api/v1'
+    : (import.meta.env.VITE_API_URL || 'https://pm-auth-service.onrender.com/api/v1');
+const BASE_URL = API_URL;
 
 class ApiService {
     constructor() {
@@ -32,7 +35,7 @@ class ApiService {
             console.log(`[API CALL] ${options.method || 'GET'} ${url}`, options.body ? JSON.parse(options.body) : '');
             const response = await fetch(url, { ...options, headers });
             console.log(`[API RSP] ${response.status} ${cleanEndpoint}`);
-            
+
             if (response.status === 401) {
                 this.setToken(null);
                 window.dispatchEvent(new CustomEvent('unauthorized'));
@@ -93,18 +96,18 @@ class ApiService {
         const query = new URLSearchParams();
         const page = filters.page !== undefined ? filters.page : 0;
         const size = filters.size !== undefined ? filters.size : 20;
-        
+
         query.append('page', page);
         query.append('size', size);
         if (filters.username) query.append('username', filters.username);
         if (filters.action) query.append('action', filters.action);
         if (filters.statusCode) query.append('statusCode', filters.statusCode);
-        
+
         const path = `/audit${query.toString() ? '?' + query.toString() : ''}`;
         return this.request(path);
     }
     getMyAuditLogs(page = 0, size = 20) { return this.request(`/audit/me?page=${page}&size=${size}`); }
-    
+
     getTenants() { return this.request('/tenants'); }
     getTenant(id) { return this.request(`/tenants/${id}`); }
     createTenant(data) { return this.request('/tenants', { method: 'POST', body: JSON.stringify(data) }); }
